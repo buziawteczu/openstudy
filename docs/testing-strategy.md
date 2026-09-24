@@ -1,0 +1,136 @@
+# Testing strategy
+
+## Goals
+
+Testing should protect the open data contract, deterministic behavior, progress integrity, and critical user workflows. It should not duplicate every assertion at every layer.
+
+The strategy is planned here; PR 0 adds no test framework, fixtures, or application code.
+
+## Unit tests
+
+Fast unit tests should cover rules with small deterministic inputs:
+
+- canonical schema validation and understandable issue codes;
+- supported question invariants;
+- source-to-canonical field transformations;
+- each explicit schema migration step;
+- exact-duplicate normalization and fingerprints;
+- deterministic near-text similarity when introduced;
+- stable identity and revision rules once decided;
+- StudySet add/update classification rules;
+- Learn, Flashcard, and Test state transitions;
+- progress calculations, including first-attempt versus eventual correctness;
+- ZIP safety accounting logic independent of a ZIP library where practical.
+
+AI or Jev output must not be needed for deterministic unit suites. Optional assisted features should test their bounded input/output contracts with recorded fixtures, not live model calls in core CI.
+
+## Integration tests
+
+Integration tests should cross real internal boundaries without requiring an entire browser journey:
+
+- JSON source through record detection, mapping, canonical creation, and validation;
+- canonical old-version file through migrations and current validation;
+- ZIP entries through safety checks and import aggregation;
+- import commit into local persistence and reload;
+- StudySet and UserProgress persistence independence;
+- add-material import preserving stable question IDs and existing progress;
+- reviewed update/replacement producing the expected revision result;
+- failed or cancelled imports leaving prior content unchanged;
+- export and restore when those features exist;
+- IndexedDB schema upgrades against retained database fixtures where feasible.
+
+Integration tests should verify transaction boundaries, especially that a partially processed import cannot become a partially persisted StudySet revision.
+
+## End-to-end tests
+
+Playwright should cover a small set of critical user outcomes:
+
+- import canonical JSON;
+- map unfamiliar JSON, preview it, correct a mapping, and import;
+- see understandable validation problems and navigate to affected records;
+- reject unsafe or unsupported ZIP input;
+- reload and find local content and progress intact;
+- complete key Learn, Flashcard, and Test flows;
+- add material, review duplicates, and preserve prior progress;
+- cancel an import or update without changing saved content;
+- use critical flows at a 320px mobile viewport;
+- complete critical controls by keyboard.
+
+E2E tests should not become the primary place for schema edge cases or study-engine combinatorics.
+
+## Manual QA
+
+Human review remains necessary for:
+
+- import-language clarity for non-technical users;
+- visual hierarchy and cognitive load before and during study;
+- keyboard order, visible focus, and screen-reader announcements;
+- touch target comfort and mobile browser behavior;
+- long questions, long answers, long filenames, and deep categories;
+- Unicode, bidirectional text, emoji, and mixed-language content;
+- unusually large but supported datasets;
+- malformed and surprising source structures;
+- progress implications in add/update decisions;
+- reduced motion, zoom, contrast modes, and text resizing;
+- recovery messaging when local storage is unavailable or cleared.
+
+## Accessibility testing
+
+Accessibility is a V1 acceptance requirement. Testing should combine:
+
+- semantic HTML and accessible-name review;
+- keyboard-only flows with visible focus;
+- automated accessibility checks as a baseline, not a complete audit;
+- screen-reader checks for import issues, question state, answer feedback, and session progress;
+- verification that correctness is not communicated by colour alone;
+- contrast checks and forced-colour resilience where supported;
+- reduced-motion behavior;
+- 200% text zoom and long-content reflow;
+- touch targets and 320px layout behavior.
+
+Wrong-answer and correct-answer messages need clear text and programmatic state. Focus movement and announcements should avoid revealing the correct answer prematurely in Learn mode or during Test mode.
+
+## Compatibility fixtures
+
+Fixtures should be small, reviewed, and treated as part of the product contract. Planned groups include:
+
+- valid canonical files for every supported schema version;
+- expected input/output pairs for every migration step;
+- invalid canonical files with expected issue codes and summaries;
+- common custom JSON shapes and saved mappings;
+- ZIP archives at and beyond entry, size, and nesting limits;
+- path-traversal, malformed, duplicate-name, and compression-ratio cases;
+- StudySet revisions representing add, update, remove, and no-op import outcomes;
+- duplicate corpora for exact, near, and distinct questions;
+- progress records spanning retained, changed, removed, and restored questions;
+- future-version files that must fail safely;
+- Unicode and long-content datasets.
+
+Large or sensitive real-world sources should not be committed casually. Synthetic fixtures should preserve the relevant structure without copying private material.
+
+## Test ownership by boundary
+
+| Concern | Primary coverage |
+| --- | --- |
+| Schema and migrations | Unit + compatibility fixtures |
+| Mapping and import transformation | Unit + integration |
+| Persistence and atomic revision commit | Integration |
+| Study-engine state transitions | Unit |
+| Critical learner/importer outcomes | Playwright |
+| Usability, visual hierarchy, assistive technology | Manual QA + targeted automation |
+| Optional external assistants | Contract tests outside core deterministic suites |
+
+## Release confidence
+
+Before a schema release, all supported-version fixtures and migrations should pass. Before a StudySet lifecycle change, progress-preservation and rollback cases should pass. Before a study UX release, critical mobile, keyboard, screen-reader, and no-network flows should be checked.
+
+Performance budgets cannot be fixed in PR 0. Representative lower-memory mobile hardware and realistic dataset sizes are needed before setting thresholds.
+
+## Open questions
+
+- Which browsers, devices, and assistive technologies form the V1 support matrix?
+- What dataset sizes define ordinary, large, and rejected inputs?
+- Which compatibility fixtures become permanent public examples?
+- How should IndexedDB tests balance realistic browsers with fast CI?
+- What minimal visual-regression coverage adds value without making layout changes brittle?
+- Which add/update and progress-reset decisions require human-reviewed golden fixtures?

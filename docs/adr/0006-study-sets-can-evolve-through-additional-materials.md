@@ -23,7 +23,7 @@ Duplicate handling is staged:
 
 Only deterministic exact rules or explicit user decisions may drive automatic deduplication behavior. Fuzzy and semantic matches do not automatically merge, overwrite, or transfer progress.
 
-The initial identity direction is an opaque persisted internal question ID plus optional source/external IDs scoped to a Source. The precise ID format, exact normalization contract, semantic-change boundary, and revision retention model remain open.
+Schema 1.0.0 uses an opaque persisted internal question ID plus optional source/external IDs scoped to a Source. It constrains the portable string representation without choosing an ID generator. StudySet `revision` is a positive JavaScript-safe integer. The exact duplicate-normalization contract, semantic-change boundary, revision-increment rules, and history-retention model remain open.
 
 ## Consequences
 
@@ -58,10 +58,10 @@ Rejected as premature complexity before rollback and collaboration requirements 
 
 ## Open questions
 
-- Which stable ID format should V1 use?
+- Which generator should create stable IDs, and when may imported canonical IDs be trusted?
 - What exact normalization rules define an exact duplicate?
 - Which edits retain identity, and when does progress reset?
-- What does a StudySet revision contain, and how many are retained?
+- What snapshots or change sets accompany the positive StudySet revision number, and how many are retained?
 - How much provenance is stored per question and per source contribution?
 - What happens when an update removes a question with progress?
 - Does a no-op import create a revision?

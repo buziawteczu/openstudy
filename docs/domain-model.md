@@ -48,13 +48,33 @@ Conceptual properties include:
 
 A StudySet is not a source file, import mapping, study session, progress record, or learning plan.
 
+### Canonical schema 1.0.0
+
+PR 1 defines the serialized V1 StudySet as:
+
+```text
+StudySet
+  schemaVersion: "1.0.0"
+  id: PortableId
+  revision: positive safe integer
+  title: non-blank string
+  description?: non-blank string
+  sources: Source[]              (at least one)
+  categories: Category[]         (flat, may be empty)
+  questions: Question[]          (at least one)
+```
+
+The canonical schema intentionally contains no UserProgress, LearningPlan, import mapping, raw source document, storage identifier, or generic metadata bag.
+
+`sources` and `questions` each require at least one item. A canonical StudySet is therefore completed, importable, and studiable content, not an empty draft. Import and mapping interfaces should use separate candidate models for incomplete state.
+
 ## Question
 
 A Question is a canonical, typed item. V1 study behavior supports only `single-choice`, but the discriminator should make later schema evolution possible.
 
 Conceptual single-choice content includes:
 
-- stable internal `questionId`;
+- stable internal `id`, used as the question ID;
 - explicit question type;
 - prompt;
 - at least two choices with stable choice identities or another unambiguous answer reference;
@@ -63,6 +83,8 @@ Conceptual single-choice content includes:
 - a minimal provenance reference, subject to the provenance-placement decision.
 
 The study engine reads canonical question fields only. Source names such as `questionText`, `choices`, or `correctIndex` are removed at the mapping boundary.
+
+Schema 1.0.0 requires stable choice IDs and a `correctChoiceId` reference. Choice IDs are unique within their question, and the correct reference must resolve within that same question. Correctness is therefore independent of array order.
 
 ### Question identity
 
@@ -77,7 +99,7 @@ Recommended initial approach:
 - Reuse an existing internal ID only when evidence is strong: an unchanged imported ID under a trusted StudySet lineage, a stable namespaced source ID with an explicit update workflow, or a reviewed exact-match decision.
 - Treat fuzzy or semantic similarity as a review candidate, never proof of identity.
 
-The exact ID representation remains open. UUIDv7, ULID, or another opaque format can be selected with implementation evidence.
+PR 1 defines the portable representation without selecting a generator. Internal IDs are 1-128 ASCII characters, start with a letter or digit, and otherwise contain only letters, digits, `.`, `_`, `:`, or `-`. This admits UUIDs, ULIDs, and prefixed IDs while rejecting whitespace, paths, and blank values. The schema validates but never generates IDs.
 
 ### When a question changes
 
@@ -92,17 +114,18 @@ The boundary between editorial and semantic change is unresolved. V1 should pref
 
 ## Source
 
-A Source identifies imported material and supports provenance and lifecycle decisions. It may record:
+A Source identifies contributing material and supports provenance and lifecycle decisions. Schema 1.0.0 stores only:
 
-- stable `sourceId` within the StudySet lifecycle;
-- user-facing filename or label;
-- media/input type;
-- import time and optional deterministic file/content digest;
-- adapter and mapping metadata needed to explain the conversion;
-- optional external system identity;
-- whether the operation added material or updated/replaced an existing source.
+- stable canonical `id` within the StudySet lifecycle;
+- human-readable `label`;
+- optional `originalFilename`;
+- optional source-defined `externalId`.
 
 Sources may contribute many questions, and a question may eventually have more than one source. A filename alone is not a reliable identity.
+
+Schema 1.0.0 deliberately has no Source kind or format enum. JSON, ZIP, DOCX, PDF, CSV, Anki, Moodle, generated material, and external integrations are importer concerns. Their format and adapter metadata remain outside the canonical StudySet. The Source does not retain imported bytes, timestamps, mappings, or digests.
+
+Question provenance is an optional array so one question can cite multiple sources. Each entry contains a referentially validated canonical `sourceId` plus optional source-defined `externalId` and opaque source-local `locator`. Neither `externalId` nor `locator` becomes canonical question identity, and the study engine must never interpret `locator`. Richer document page, block, or OCR provenance can evolve later without changing core question identity.
 
 ## SourceDocument
 
@@ -133,7 +156,11 @@ The model should be able to answer:
 - which questions were added, retained, changed, or removed;
 - whether progress can remain attached to each question identity.
 
-PR 0 does not decide whether every revision is a complete immutable snapshot, a change set plus a current snapshot, or only a monotonic revision number. Rollback and retention costs must be evaluated before implementation.
+Schema 1.0.0 represents the current StudySet revision as a positive JavaScript-safe integer. Initial content uses revision `1`. A content revision is distinct from `schemaVersion`, and a representation-only schema migration does not by itself change content revision. Validation does not compare revisions or increment them, and the package does not retain history. Whether persistence keeps complete immutable snapshots, change sets, or a smaller rollback buffer remains unresolved.
+
+## Category
+
+Schema 1.0.0 uses a flat category registry. A Category has a stable internal `id` and non-blank `label`; questions may reference zero or more category IDs. This supports filtering and preserves imported sections without introducing hierarchy, ordering, taxonomy, or category behavior.
 
 ## UserProgress
 
@@ -187,12 +214,11 @@ Cardinality is conceptual. In particular, the provenance relation may be simplif
 
 ## Open questions
 
-- Which opaque ID representation should V1 use, and can importers ever propose internal IDs?
+- Which generator should create portable internal IDs, and can importers ever propose trusted canonical IDs?
 - What exact changes retain question identity and progress?
-- Are choice IDs required for V1 portability and safe reordering?
-- Is StudySet revision a number, an immutable snapshot ID, or both?
-- How much provenance belongs directly on `Question` versus in a separate contribution record?
-- Can one canonical question cite multiple source locations in V1?
+- How should revision snapshots and rollback be stored around the positive revision number?
+- When does a content operation increment revision, including no-op imports and metadata-only edits?
+- When does provenance need a structured locator beyond the V1 opaque string?
 - Are SourceDocuments disposable by default, retained by default, or a per-import choice?
 - How should media assets be identified and packaged without breaking portability?
 - What happens to progress for removed questions, replaced sources, and rolled-back revisions?

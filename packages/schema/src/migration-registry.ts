@@ -129,6 +129,31 @@ function resolveMigrationPath(
   return { success: true, steps };
 }
 
+/** Validate production support claims without constraining synthetic registries. */
+export function completeMigrationSources(
+  registry: MigrationRegistry,
+  targetVersion: string,
+): readonly string[] {
+  const sources: string[] = [];
+
+  for (const sourceVersion of registry.sourceVersions) {
+    if (sourceVersion === targetVersion) {
+      throw new Error(
+        `Migration registry must not define an outgoing step from current version '${targetVersion}'`,
+      );
+    }
+
+    const path = resolveMigrationPath(registry, sourceVersion, targetVersion);
+    if (!path.success) {
+      throw new Error(`Incomplete migration registry: ${path.error.message}`);
+    }
+
+    sources.push(sourceVersion);
+  }
+
+  return Object.freeze(sources);
+}
+
 function declaredVersionOf(input: unknown): string | undefined {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
     return undefined;

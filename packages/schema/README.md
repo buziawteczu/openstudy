@@ -141,7 +141,7 @@ const migration = migrateStudySet(unknownData);
 
 For `1.0.0`, migration applies zero steps and validates the complete value with `StudySetSchema`. Zod remains authoritative for the final canonical result and all cross-record invariants. Validation returns a new value, does not mutate caller-owned input, and does not add defaults or strip unknown fields.
 
-Production steps live in the explicit table in `src/migration-steps.ts`. Each source version may have only one registered outgoing edge, so dispatch cannot be ambiguous. Path selection follows only those registered edges; semantic-version ordering classifies a declaration as historical or future but never supplies a transformation or allows a version to be skipped.
+Production steps live in the explicit table in `src/migration-steps.ts`. Each source version may have only one registered outgoing edge, so dispatch cannot be ambiguous. At package initialization, every registered source must have a complete, cycle-free path to the current version; an incomplete production registry is a configuration error, not a supported historical version. Synthetic test registries remain free to exercise missing paths and cycles. Path selection follows only registered edges; semantic-version ordering classifies a declaration as historical or future but never supplies a transformation or allows a version to be skipped.
 
 Migration steps must be pure and deterministic. They must not use time, randomness, locale-sensitive behavior, network or database access, generated IDs, AI, Jev, embeddings, or external services. Representation-only migrations preserve `StudySet.id`, `StudySet.revision`, and all source, category, question, and choice IDs. They never increment the content revision.
 

@@ -1,5 +1,6 @@
 import { CURRENT_SCHEMA_VERSION } from "./constants.js";
 import {
+  completeMigrationSources,
   createMigrationRegistry,
   runRegisteredMigrations,
   type MigrationStepFailureError,
@@ -19,7 +20,9 @@ const SCHEMA_VERSION_PATTERN =
   /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 
 const migrationRegistry = createMigrationRegistry(STUDY_SET_MIGRATION_STEPS);
-const supportedHistoricalVersions = new Set(migrationRegistry.sourceVersions);
+const supportedHistoricalVersions = new Set(
+  completeMigrationSources(migrationRegistry, CURRENT_SCHEMA_VERSION),
+);
 
 export type SchemaVersionCompatibility = "current" | "supported-historical";
 
@@ -104,14 +107,14 @@ export type StudySetMigrationResult =
 
 function parseSchemaVersion(
   value: string,
-): readonly [major: bigint, minor: bigint, patch: bigint] | undefined {
+): readonly [major: string, minor: string, patch: string] | undefined {
   const match = SCHEMA_VERSION_PATTERN.exec(value);
 
   if (match === null) {
     return undefined;
   }
 
-  return [BigInt(match[1]!), BigInt(match[2]!), BigInt(match[3]!)];
+  return [match[1]!, match[2]!, match[3]!];
 }
 
 function compareSchemaVersions(left: string, right: string): -1 | 0 | 1 {
@@ -119,13 +122,19 @@ function compareSchemaVersions(left: string, right: string): -1 | 0 | 1 {
   const rightParts = parseSchemaVersion(right)!;
 
   for (let index = 0; index < leftParts.length; index += 1) {
-    if (leftParts[index]! < rightParts[index]!) {
+    const leftPart = leftParts[index]!;
+    const rightPart = rightParts[index]!;
+
+    if (leftPart.length < rightPart.length) {
       return -1;
     }
 
-    if (leftParts[index]! > rightParts[index]!) {
+    if (leftPart.length > rightPart.length) {
       return 1;
     }
+
+    if (leftPart < rightPart) return -1;
+    if (leftPart > rightPart) return 1;
   }
 
   return 0;

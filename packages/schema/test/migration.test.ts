@@ -14,6 +14,7 @@ import {
   type StudySetMigrationResult,
 } from "../src/index.js";
 import {
+  completeMigrationSources,
   createMigrationRegistry,
   runRegisteredMigrations,
 } from "../src/migration-registry.js";
@@ -119,6 +120,19 @@ describe("schema version detection", () => {
       "unsupported-historical-version",
     );
   });
+
+  it("classifies very large numeric components without BigInt conversion", () => {
+    const largeComponent = "9".repeat(10_000);
+
+    assert.equal(
+      detectionError({ schemaVersion: `0.${largeComponent}.0` }).code,
+      "unsupported-historical-version",
+    );
+    assert.equal(
+      detectionError({ schemaVersion: `1.0.${largeComponent}` }).code,
+      "unsupported-future-version",
+    );
+  });
 });
 
 describe("migrateStudySet", () => {
@@ -210,6 +224,61 @@ describe("migrateStudySet", () => {
 });
 
 describe("test-only migration registry harness", () => {
+  it("advertises only sources with a complete path to current", () => {
+    const registry = createMigrationRegistry([
+      {
+        fromVersion: "0.9.0",
+        toVersion: "0.10.0",
+        migrate: () => assert.fail("Registry validation must not execute steps"),
+      },
+      {
+        fromVersion: "0.10.0",
+        toVersion: CURRENT_SCHEMA_VERSION,
+        migrate: () => assert.fail("Registry validation must not execute steps"),
+      },
+    ]);
+
+    assert.deepEqual(completeMigrationSources(registry, CURRENT_SCHEMA_VERSION), [
+      "0.9.0",
+      "0.10.0",
+    ]);
+  });
+
+  it("rejects incomplete production support before advertising a source", () => {
+    const registry = createMigrationRegistry([
+      {
+        fromVersion: "0.9.0",
+        toVersion: "0.10.0",
+        migrate: () => assert.fail("Registry validation must not execute steps"),
+      },
+    ]);
+
+    assert.throws(
+      () => completeMigrationSources(registry, CURRENT_SCHEMA_VERSION),
+      /Incomplete migration registry: No migration path from '0.9.0' to '1.0.0'; stopped at '0.10.0'/,
+    );
+  });
+
+  it("rejects a cyclic production support path", () => {
+    const registry = createMigrationRegistry([
+      {
+        fromVersion: "0.9.0",
+        toVersion: "0.10.0",
+        migrate: () => assert.fail("Registry validation must not execute steps"),
+      },
+      {
+        fromVersion: "0.10.0",
+        toVersion: "0.9.0",
+        migrate: () => assert.fail("Registry validation must not execute steps"),
+      },
+    ]);
+
+    assert.throws(
+      () => completeMigrationSources(registry, CURRENT_SCHEMA_VERSION),
+      /Migration registry contains a cycle at '0.9.0'/,
+    );
+  });
+
   it("runs an explicit synthetic migration chain in order", () => {
     const registry = createMigrationRegistry([
       {

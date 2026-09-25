@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "study-set.biology-expanded",
+  "revision": 2,
+  "title": "Biology exam preparation",
+  "sources": [
+    {
+      "id": "source.chapters-1-5",
+      "label": "Chapters 1-5",
+      "originalFilename": "biology-chapters-1-5.json"
+    },
+    {
+      "id": "source.revision-bank",
+      "label": "Additional revision bank",
+      "externalId": "revision-bank-2026"
+    }
+  ],
+  "categories": [
+    {
+      "id": "category.cells",
+      "label": "Cells"
+    },
+    {
+      "id": "category.genetics",
+      "label": "Genetics"
+    }
+  ],
+  "questions": [
+    {
+      "id": "question.mitochondria",
+      "type": "single-choice",
+      "prompt": "Which organelle is the main site of aerobic respiration?",
+      "choices": [
+        {
+          "id": "choice.mitochondrion",
+          "text": "Mitochondrion"
+        },
+        {
+          "id": "choice.ribosome",
+          "text": "Ribosome"
+        }
+      ],
+      "correctChoiceId": "choice.mitochondrion",
+      "categoryIds": [
+        "category.cells"
+      ],
+      "provenance": [
+        {
+          "sourceId": "source.chapters-1-5",
+          "externalId": "CELL-042",
+          "locator": "record:42"
+        }
+      ]
+    },
+    {
+      "id": "question.genotype",
+      "type": "single-choice",
+      "prompt": "What term describes an organism's genetic constitution?",
+      "choices": [
+        {
+          "id": "choice.genotype",
+          "text": "Genotype"
+        },
+        {
+          "id": "choice.phenotype",
+          "text": "Phenotype"
+        }
+      ],
+      "correctChoiceId": "choice.genotype",
+      "explanation": "Genotype describes genetic constitution; phenotype describes observable characteristics.",
+      "categoryIds": [
+        "category.genetics"
+      ],
+      "provenance": [
+        {
+          "sourceId": "source.revision-bank",
+          "externalId": "REV-GEN-17",
+          "locator": "question:17"
+        },
+        {
+          "sourceId": "source.chapters-1-5",
+          "locator": "record:88"
+        }
+      ]
+    }
+  ]
+}

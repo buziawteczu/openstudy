@@ -24,7 +24,7 @@
     "build": "tsc -p tsconfig.build.json",
     "check:json-schema": "tsx scripts/generate-json-schema.ts --check",
     "generate:json-schema": "tsx scripts/generate-json-schema.ts",
-    "test": "tsx --test test/study-set.test.ts test/json-schema.test.ts",
+    "test": "tsx --test test/study-set.test.ts test/json-schema.test.ts test/migration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

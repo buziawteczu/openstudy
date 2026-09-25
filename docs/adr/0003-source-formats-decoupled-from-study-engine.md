@@ -24,6 +24,8 @@ The study engine consumes only validated canonical questions. It will not read f
 
 Source adapters may preserve provenance, but provenance will not be required for answer evaluation. Community adapters should be able to target import contracts and the canonical schema without modifying study logic. No plugin registry is required now.
 
+Schema 1.0.0 does not classify Source by format or importer kind. Its minimal Source record contains stable identity, a label, and optional filename or source-defined external ID. Format-specific classification stays upstream so adding JSON, ZIP, DOCX, PDF, CSV, Anki, Moodle, generated, or external sources does not change the canonical schema.
+
 ## Consequences
 
 - New source formats can be added with limited impact on study modes.
@@ -55,6 +57,6 @@ Rejected as over-engineering. A clear transformation boundary is sufficient unti
 
 - What is the smallest stable adapter contract for V1 JSON mapping?
 - How are saved mappings identified and reused?
-- How much source provenance belongs in canonical data?
+- When does canonical provenance need a structured locator beyond schema 1.0.0's source ID, external ID, and opaque locator?
 - Are original SourceDocuments retained or disposable?
 - What packaging model should community adapters use when they become real?

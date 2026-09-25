@@ -92,7 +92,7 @@ All import paths converge on the same StudySet schema before persistence and stu
 
 The canonical model makes the question type explicit. V1 implements only single-choice behavior. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 
-The canonical boundary includes validation results and schema-version handling, but it does not erase provenance. Detailed source metadata should remain adjacent to the content lifecycle and outside the study engine's interaction rules. The exact amount of provenance embedded in a `Question` remains open.
+The canonical boundary includes validation results and schema-version handling, but it does not erase provenance. Schema 1.0.0 keeps a minimal provenance array on each Question: a canonical source reference plus optional source-defined external ID and opaque source-local locator. Detailed source and document metadata remains upstream, and the study engine never interprets the locator.
 
 ## Dependency direction
 
@@ -181,19 +181,35 @@ An extension point means stable input/output responsibility. It does not yet imp
 - Study-session configuration happens before a session; active study emphasizes the current task.
 - Accessibility is part of acceptance criteria, not a later presentation-layer repair.
 
+## Canonical schema 1.0.0 decisions
+
+PR 1 resolves the first serialized boundary without implementing its consumers:
+
+- `schemaVersion` is the exact string `"1.0.0"`.
+- StudySet, source, category, question, and choice IDs use the same portable opaque string constraint. The schema validates but does not generate IDs.
+- `revision` is a positive JavaScript-safe integer representing the current content revision within a StudySet. Validation does not compare or increment it; history and rollback storage remain outside the schema.
+- V1 `Question` is a discriminated union containing only `single-choice`.
+- Choices have stable IDs and `correctChoiceId` references one of those IDs.
+- Categories are a flat optional-use registry represented by a required array that may be empty; questions reference category IDs.
+- Questions may carry a minimal array of provenance entries. Each entry references a declared source and may include a source-scoped external ID and opaque locator.
+- Source has no format or kind enum. Source-format and adapter classification remains outside the canonical schema.
+- Every canonical object is strict. Unknown fields are rejected intentionally because OpenStudy guarantees backward compatibility for supported older files, not forward compatibility for future files.
+- `sources` and `questions` require at least one item, so canonical StudySets represent completed content rather than draft import state.
+- UserProgress, LearningPlan, raw SourceDocuments, import mappings, and source-specific fields are not part of the StudySet schema.
+
 ## Open questions register
 
 These are intentionally unresolved in PR 0:
 
-1. **Stable ID strategy:** opaque random IDs, time-sortable IDs, or another representation; and when deterministic imported IDs are safe.
-2. **StudySet revision semantics:** monotonic integer, immutable snapshot lineage, event history, or a smaller model.
-3. **Provenance placement:** minimal `sourceRef` on `Question`, a separate relation, or a hybrid; including cardinality when one question has multiple sources.
+1. **ID generation and trust:** which generator creates portable internal IDs and when, if ever, imported canonical IDs are trusted or replaced.
+2. **Revision history:** when revision numbers increment, how snapshots are retained, and how rollback affects later progress.
+3. **Richer provenance:** whether future document locators need a structured extension beyond the V1 opaque locator.
 4. **SourceDocument retention:** disposable after import, retained by user choice, or retained by default.
 5. **Exact duplicate normalization:** whitespace, Unicode, case, answer ordering, punctuation, and category treatment.
 6. **Progress after question changes:** which editorial changes retain identity and which correctness-bearing changes reset or archive progress.
 7. **Media representation:** asset IDs, portable relative references, embedding rules, MIME metadata, and offline limits.
 8. **Version ownership:** whether the schema package and web application eventually release independently.
 9. **Local dataset limits:** supported question count, total bytes, asset budget, and browser/device baseline.
-10. **Rollback and revision history:** whether V1 needs a single pre-import snapshot, multiple retained revisions, or export-based recovery.
+10. **Rollback strategy:** whether V1 needs a single pre-import snapshot, multiple retained revisions, or export-based recovery.
 
 Additional product validation is needed for partial imports, add-material launch scope, and the minimum backup experience.

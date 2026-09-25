@@ -17,6 +17,8 @@ The question model will contain an explicit type discriminator. V1 will implemen
 
 Supported old schema versions will be read through explicit, deterministic, testable, version-to-version migrations. Unknown or unsupported versions will fail with an understandable compatibility error. AI and Jev will not perform schema migration.
 
+Schema `1.0.0` is the first canonical version. Newer readers guarantee backward compatibility only for historical versions with an explicit parser or deterministic migration path. Forward compatibility is not guaranteed, and strict canonical objects may cause a 1.0 reader to reject unknown fields in a future minor version. Breaking serialized-field, validation, identity, reference, or semantic changes require a major version; additive optional fields may use a minor version; patch versions do not intentionally change the serialized contract.
+
 The schema may later be published as `@openstudy/schema`, but it will remain in this repository initially. Package and application release independence is not decided yet.
 
 ## Consequences
@@ -48,7 +50,7 @@ Rejected as premature coordination and release overhead before external consumer
 
 ## Open questions
 
-- What exact ID and media representations belong in schema 1.0?
-- What semantic-versioning policy applies to validation changes and new question types?
+- Which component generates the portable IDs accepted by schema 1.0.0, and when may imported IDs be trusted?
+- What media representation belongs in a future schema version?
 - How many prior major versions will readers support?
 - When, if ever, should the schema package and application version independently?

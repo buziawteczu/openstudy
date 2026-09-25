@@ -6,7 +6,7 @@ OpenStudy must keep format evolution separate from content evolution.
 
 | Version | Meaning | Example |
 | --- | --- | --- |
-| `schemaVersion` | Version of the canonical StudySet file/data format | Study schema `1.2` |
+| `schemaVersion` | Version of the canonical StudySet file/data format | Study schema `1.0.0` |
 | StudySet `revision` | Version of a particular collection's content | Biology Exam, revision `4` |
 
 Changing a title, adding questions, or replacing a source may create a StudySet revision without changing `schemaVersion`. Adding a new required field or question representation may change `schemaVersion` without implying that a user's content has been revised.
@@ -19,32 +19,30 @@ Every canonical StudySet declares a schema version, conceptually:
 
 ```json
 {
-  "schemaVersion": "1.0"
+  "schemaVersion": "1.0.0"
 }
 ```
 
-This is illustrative, not the schema definition. Unversioned JSON is source data that needs mapping unless a documented legacy import rule says otherwise.
+Schema `1.0.0` uses a full semantic-version string and the current validator accepts exactly `"1.0.0"`. Unversioned JSON is source data that needs mapping unless a documented legacy import rule says otherwise. PR 1 implements no migration or version negotiation.
 
-## Compatibility goals
+## Compatibility contract
 
-OpenStudy should aim for these guarantees:
+Schema `1.0.0` is the first canonical OpenStudy schema version.
 
-- Files written by a supported older schema version remain readable through deterministic migrations.
-- A reader never silently treats an unknown major version as the current format.
-- Unsupported future versions produce an understandable compatibility error without modifying the source.
-- Migration does not depend on network access, AI, Jev, or source-document reprocessing.
-- Importing and migrating are non-destructive until the user confirms persistence.
-- Exported data declares enough version information for another implementation to choose a compatible reader.
-- Test fixtures preserve representative files for every supported schema version.
+OpenStudy guarantees backward compatibility for supported historical versions: newer versions must be able to read them through an explicit parser or deterministic migration path. A historical version is supported only when that path exists and has compatibility fixtures.
 
-The number of prior major versions supported at once is not decided in PR 0.
+Forward compatibility is not guaranteed. An older OpenStudy reader does not have to understand a future schema version. Canonical objects are strict, so a `1.0.0` reader may reject a future `1.1.0` document containing an optional field it does not know. This is intentional.
+
+Unknown future schema versions are rejected explicitly. They are never treated as the current schema or interpreted heuristically. Migration does not depend on network access, AI, Jev, or source-document reprocessing.
+
+Importing and migrating must remain non-destructive until the user confirms persistence. PR 1 implements no migration or version-dispatch machinery; that belongs to PR 2.
 
 ## Deterministic migrations
 
 Migrations are explicit, testable, version-to-version transforms:
 
 ```text
-1.0 -> 1.1 -> 1.2
+1.0.0 -> 1.1.0 -> 1.2.0
 ```
 
 Each step should:
@@ -60,17 +58,15 @@ Direct shortcuts such as `1.0 -> 1.2` may be added for performance only if they 
 
 Migration changes representation. It does not decide whether newly imported source content is the same question or whether progress should transfer; those are StudySet lifecycle decisions.
 
-## Semantic versioning considerations
+## Schema version changes
 
-Semantic versioning is a useful starting vocabulary for the schema:
+The canonical schema uses full `major.minor.patch` syntax. This version is independent from the npm package version and any future application version.
 
-- **Major:** incompatible canonical representation or semantics that an older reader cannot safely consume.
-- **Minor:** backward-compatible additions that conforming readers can ignore or handle according to documented extension rules.
-- **Patch:** corrections or clarifications that do not change valid serialized data semantics.
+- **Major:** required for a breaking serialized-contract change. Breaking changes include removing or renaming serialized fields, making an optional field required, tightening validation so previously valid canonical files become invalid, changing field semantics, changing identity semantics, or changing reference semantics.
+- **Minor:** may be used for a backward-compatible additive change, such as adding an optional field. Newer readers must still accept supported older files. Older readers may reject the new document because forward compatibility is not guaranteed.
+- **Patch:** must not intentionally change the serialized data contract. Documentation, implementation, or error-message corrections may use a patch only when the accepted canonical data set and its semantics remain unchanged.
 
-This policy needs precision before publishing schema `1.0`. JSON readers do not automatically gain compatibility merely because a field is optional. Unknown question types, changed validation rules, and tightened constraints can be behaviorally breaking even when the JSON shape remains readable.
-
-The version syntax itself must be defined. The example `"1.0"` may represent major/minor format compatibility rather than a package's full release version.
+Adding a new question discriminator or changing how an existing discriminator behaves requires explicit compatibility analysis. A JSON shape that remains parseable can still be semantically breaking.
 
 ## StudySet revision semantics
 
@@ -84,13 +80,15 @@ A StudySet revision records an explicitly accepted content change, potentially i
 
 Revision identity should support provenance and progress decisions. It should not be incremented merely because the data was migrated to a new schema representation with no content-semantic change, unless the eventual revision policy explicitly says otherwise.
 
+Schema 1.0.0 represents the current content revision as a positive JavaScript-safe integer, beginning at `1`. A representation-only schema migration does not increment the content revision. The schema validates only the value's structure; it does not compare revisions or implement increment, history, or rollback behavior.
+
 Unresolved choices include:
 
-- monotonic integer versus opaque immutable revision ID;
-- full snapshots versus change sets;
+- full snapshots versus change sets around the positive revision number;
 - branching or only linear local history;
 - number and size of retained revisions;
 - rollback behavior for progress created after a revision;
+- which content and metadata operations increment the number;
 - whether imports that contain only exact duplicates create a revision.
 
 ## Package and application versions
@@ -120,11 +118,10 @@ Fixtures should be reviewed as public compatibility contracts, not incidental te
 
 ## Open questions
 
-- What exact schema-version syntax will version 1 use?
-- Which additive changes can older readers safely ignore?
-- How many prior major versions will the application support?
-- Does a validation-rule tightening require a minor or major schema change?
-- What is the StudySet revision identifier and retention model?
-- Does representation-only migration create a new StudySet revision?
+- How will PR 2 dispatch exact historical versions and chain deterministic migrations?
+- Which historical versions will each application release support?
+- What error contract will distinguish unknown future versions from known but unsupported historical versions?
+- What snapshot or change-set retention model accompanies the positive revision number?
+- Which content operations increment revision, including no-op imports?
 - When should the schema package and web application version independently?
 - Which export round-trip properties can be guaranteed without preserving unknown fields forever?

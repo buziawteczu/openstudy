@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "study-set.biology",
+  "revision": 1,
+  "title": "Biology review",
+  "description": "A small categorized example.",
+  "sources": [
+    {
+      "id": "source.biology-json",
+      "label": "Biology question bank",
+      "originalFilename": "biology.json"
+    }
+  ],
+  "categories": [
+    {
+      "id": "category.cells",
+      "label": "Cells"
+    },
+    {
+      "id": "category.genetics",
+      "label": "Genetics"
+    }
+  ],
+  "questions": [
+    {
+      "id": "question.cell-membrane",
+      "type": "single-choice",
+      "prompt": "Which structure controls what enters and leaves a cell?",
+      "choices": [
+        {
+          "id": "choice.membrane",
+          "text": "Cell membrane"
+        },
+        {
+          "id": "choice.nucleus",
+          "text": "Nucleus"
+        }
+      ],
+      "correctChoiceId": "choice.membrane",
+      "explanation": "The cell membrane is selectively permeable.",
+      "categoryIds": [
+        "category.cells"
+      ],
+      "provenance": [
+        {
+          "sourceId": "source.biology-json",
+          "externalId": "BIO-001",
+          "locator": "record:1"
+        }
+      ]
+    }
+  ]
+}

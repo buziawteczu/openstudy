@@ -13,7 +13,7 @@ A raw source, an extracted document, a canonical StudySet, and a study session a
 
 Source ingestion, mapping, canonical validation, persistence, and study will be separate boundaries.
 
-Structured adapters produce canonical StudySet candidates. Future binary-document processing follows:
+Structured source adapters expose neutral record collections from already-normalized structured inputs through `@openstudy/import-core`. A separate, later mapping boundary produces canonical StudySet candidates. Adapters do not decide question semantics or generate canonical identities. This resolves the minimal V1 adapter contract without coupling it to schema or study behavior. Future binary-document processing follows:
 
 ```text
 binary source -> SourceDocument -> NormalizedDocument
@@ -55,7 +55,7 @@ Rejected as over-engineering. A clear transformation boundary is sufficient unti
 
 ## Open questions
 
-- What is the smallest stable adapter contract for V1 JSON mapping?
+- Which source structures should the future JSON adapter recognize and expose as neutral collections?
 - How are saved mappings identified and reused?
 - When does canonical provenance need a structured locator beyond schema 1.0.0's source ID, external ID, and opaque locator?
 - Are original SourceDocuments retained or disposable?

@@ -8,6 +8,7 @@ Importing, persistence, and study modes are not implemented yet.
 
 - `apps/web`: React/TypeScript/Vite/Tailwind CSS frontend, component tests, and Playwright smoke tests.
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
+- `packages/import-core`: neutral structured import contracts and deterministic inspection; no file ingestion or canonical mapping yet.
 - `docs`: product and architecture contracts.
 
 ## Development
@@ -31,8 +32,8 @@ npm run build
 npm run verify
 ```
 
-These commands cover both workspaces. `verify` runs typecheck, schema and
-frontend tests, both builds, and JSON Schema freshness checking.
+These commands cover all workspaces. `verify` runs typecheck, schema, import-core,
+and frontend tests, all builds, and JSON Schema freshness checking.
 `npm run check:json-schema` and `npm run generate:json-schema` still target the
 schema package.
 

@@ -13,6 +13,7 @@ to `@openstudy/schema`, React, storage, or file APIs.
 | `NormalizedStructuredSource` | Descriptor plus an already-extracted structured value |
 | `RecordCollection`, `MappingCandidate` | Explicit neutral collections prepared by an adapter, before mapping |
 | `StructuredSourceAdapter` | Pure recognition/projection contract |
+| `structuredRecordsAdapter` | Format-neutral discovery of object-only record arrays |
 | `inspectMappingCandidate(input)` | Validate a neutral candidate and return detached inspection summaries |
 | `ImportInspection`, `CollectionInspection`, `FieldInspection`, `FieldSample` | Collection counts, field presence/types, and original sample values |
 | `ImportResult<T>`, `ImportFailure`, `ImportPath` | Discriminated expected failures with machine-readable context |
@@ -39,8 +40,21 @@ canonical IDs, read files, use time/randomness/network/AI, or persist anything.
 Calls are synchronous because all ingestion/extraction has already happened.
 Expected failures are explicit results; programmer invariant violations may throw.
 
-There are no production adapters, dispatch registries, or runner/plugin frameworks.
-The only adapter implementation is synthetic and lives in the tests.
+`structuredRecordsAdapter` is the first production adapter. It accepts already-
+normalized source values and discovers object-only arrays, including empty arrays,
+at the root or inside nested container objects/arrays. It stops traversing when it
+finds a collection: arrays inside records remain nested field data. Mixed arrays
+are not filtered into collections; primitives and standalone record objects
+without record arrays return `no-record-collection`. No field names have special
+meaning. Source order is preserved, and collection keys use escaped JSON-pointer
+locators prefixed with `records:` (not canonical IDs).
+
+The adapter returns readonly references to the normalized source records to avoid
+another full copy. Callers must provide validated, resource-bounded, acyclic data
+and retain ownership of that input. `inspectMappingCandidate` independently
+validates the projected candidate and returns detached summaries. The web JSON
+ingestion boundary enforces those budgets before calling either API.
+There are no dispatch registries or runner/plugin frameworks.
 
 ## Inspection behavior
 
@@ -85,7 +99,7 @@ There is no UI error copy or parsing error model here.
 
 ## Next boundaries and development
 
-JSON/ZIP ingestion will later deliver normalized structured values to an adapter.
+Local web JSON/ZIP ingestion delivers normalized structured values to this adapter.
 Each JSON input/ZIP entry can have its own source descriptor and candidate.
 Mapping will later turn a reviewed collection into a canonical candidate, with
 explicit identity/provenance decisions and validation by `@openstudy/schema`.

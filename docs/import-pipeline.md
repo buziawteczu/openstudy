@@ -8,8 +8,9 @@ The planned V1 import path is JSON and ZIP files containing JSON. Document extra
 
 ## Implemented neutral boundary (`@openstudy/import-core`)
 
-Conceptual PR 4 implements contracts and inspection only. Real ingestion and
-mapping are still future work; the web `/import` page remains a placeholder.
+Conceptual PR 4 established contracts and inspection. Conceptual PR 5 adds
+local JSON/ZIP ingestion at `/import` and a format-neutral record-array adapter.
+The implemented flow stops at neutral inspection; mapping is still future work.
 
 | Stage | Representation and owner |
 | --- | --- |
@@ -31,7 +32,12 @@ raw input -> ingestion/extraction -> normalized structured source
 returns `ImportResult<MappingCandidate>`. It preserves the source descriptor and
 reports its adapter ID. It may identify source-specific record collections but
 must not interpret question semantics, generate canonical IDs, or access I/O.
-There is no production adapter or runtime registry in this PR.
+The production `structuredRecordsAdapter` discovers object-only arrays (including
+empty arrays) at the root or through nested containers. It stops at each record
+collection, leaving nested record fields intact. Mixed arrays are not filtered;
+primitive data or standalone objects without record arrays are unsupported.
+No field name, including `questions`, `answers`, or `correctIndex`, is interpreted.
+Escaped JSON-pointer collection keys are temporary locators. No registry is added.
 
 `inspectMappingCandidate` validates an explicitly supplied neutral candidate and
 reports collection counts, top-level field presence/types, and the first three
@@ -54,13 +60,12 @@ than invented IDs. Neither keys nor source fields named `id` are canonical
 StudySet/Question/Choice IDs or deduplication evidence. Adapter/format/media-type
 metadata stays upstream and is not automatically copied into canonical Source.
 
-In conceptual PR 5, JSON and safe ZIP ingestion will read, parse, and normalize
-user material before a structured adapter exposes collections. It will own
-parser failures and file/archive resource limits; this PR adds none of that code.
-Each JSON input or extracted JSON entry can supply its own normalized source;
-combining candidates across entries belongs to the later import use case.
-Already-declared canonical material still follows the explicit schema-version
-validation/migration path, never heuristic mapping by import-core.
+The web ingestion modules own file reading, UTF-8/JSON parsing, and archive budgets.
+Each JSON file/entry supplies one normalized source and mapping candidate;
+summary counts are aggregated, but candidates are not merged or canonicalized.
+Even a `schemaVersion` field remains opaque at this stage. The later canonical
+import path must explicitly validate/migrate declared canonical material; generic
+collection discovery is not a substitute for that boundary.
 
 Future DOCX/PDF processing can retain separate `SourceDocument` and
 `NormalizedDocument` representations, then project suitable tables/records into
@@ -71,6 +76,46 @@ a real extractor needs them; study continues to consume validated canonical data
 See [the package README](../packages/import-core/README.md) for the public API.
 
 ## V1 structured import
+
+### Implemented local ingestion
+
+`apps/web/src/import` contains `ingest-file.ts` (FileReader/orchestration),
+`json.ts` (native parse and bounded normalization), `zip.ts` (archive checks and
+streamed extraction), `limits.ts` (tunable budgets), and `errors.ts` (typed failures
+and UI messages). Browser APIs do not enter import-core. Vite/TypeScript resolve
+the workspace's public source entry so clean-checkout checks do not require a
+pre-existing package `dist` directory.
+
+The picker supports `.json` and `.zip`, case-insensitively; MIME hints are not
+trusted. Raw sizes are checked before reading. JSON is decoded as strict UTF-8
+(an initial UTF-8 BOM is tolerated) and parsed once with `JSON.parse`; non-finite
+numbers, excessive depth, or excessive node count fail before inspection. Field
+names, nested structures, and values are preserved, not flattened or mapped.
+
+All file processing is on-device, in memory. No upload, backend, external API,
+analytics, storage, or AI is used. ZIP code is bundled with the app, not fetched
+when selecting a source. Browser tests block network requests after app load and
+exercise both file types. Loading the app initially is separate from ingestion;
+this PR does not add an offline-installable PWA or service worker.
+
+Idle, reading, success, and error states use a labeled native picker, a polite
+status region, and error alerts. Cancel/reset aborts ongoing reads/extraction;
+reset clears the input and restores focus so the same file can be selected again.
+Success says **Ready for mapping**, with file/collection/record counts and no
+Continue button. Nothing is added to the Library. Any invalid JSON entry fails
+the entire attempt rather than silently returning a partial import.
+
+### Runtime dependency and browser baseline
+
+The only new third-party runtime dependency is `@zip.js/zip.js` 2.18.2 (locked),
+using the tree-shakable `lib/zip-core-native.js` entry point, not its filesystem
+API or full WASM archive bundle. It supplies central-directory inspection,
+streamed extraction, CRC-32 checks, and strict local-header/integrity checks.
+Workers are explicitly disabled. Stored and DEFLATE ZIP entries are supported.
+DEFLATE requires a modern browser with native `DecompressionStream("deflate-raw")`;
+unsupported browsers receive a typed error and can still select plain JSON.
+There is no downloaded fallback. See the [ZIP reader documentation](https://gildas-lormeau.github.io/zip.js/api/classes/ZipReader.html)
+and [integrity/stream options](https://gildas-lormeau.github.io/zip.js/api/interfaces/EntryGetDataOptions.html).
 
 ```text
 select file
@@ -179,17 +224,61 @@ ZIP input is untrusted. Risks include:
 - resource exhaustion during parsing;
 - non-JSON content disguised as JSON.
 
-Conservative starting implementation defaults could be:
+Implemented tunable defaults in `apps/web/src/import/limits.ts` are:
 
-| Limit | Starting value |
+| Limit | Configured value |
 | --- | ---: |
-| Single JSON input | about 10 MB |
-| ZIP compressed size | about 20 MB |
-| Total uncompressed entries | about 50 MB |
-| Entry count | about 100 |
+| Single JSON file or extracted JSON entry | 10 MiB (10,485,760 bytes) |
+| ZIP compressed size | 20 MiB (20,971,520 bytes) |
+| Total uncompressed entries, including ignored files | 50 MiB (52,428,800 bytes) |
+| Entry count, including directories/non-JSON/empty entries | 100 |
+| Per-entry expansion ratio | 200:1, using `max(1, compressedSize)` |
+| JSON depth | 100 edges from the root |
+| JSON nodes | 200,000 values across the whole selection (all JSON entries) |
 | Nested ZIP | unsupported |
 
-These are tunable implementation defaults, not permanent product guarantees. They must be validated against mobile memory constraints and realistic datasets. Size checks should be applied before and during decompression where possible, rather than trusting archive headers. V1 should process entries in memory or controlled browser storage and must normalize/reject unsafe names even though it does not extract to a server filesystem.
+These are implementation budgets, not permanent product guarantees. The ratio is
+a heuristic that can reject legitimate repetitive JSON; an uncompressed ZIP or
+plain JSON is a workaround. Mobile-device memory/performance still needs profiling.
+Byte caps do not equal a JavaScript heap cap: decoded strings, parsed objects,
+neutral inspection snapshots, and native decompressor buffers consume more memory.
+
+The entry generator stops before retaining more than 100 entries. All names and
+declared sizes are checked before extraction. Entries are then processed
+sequentially into a bounded `WritableStream`, checking actual per-entry and total
+output before retaining JSON chunks; non-JSON output is discarded. CRCs, output
+size, overlapping entries, and local/central header agreement are checked by the
+library. False underreported sizes are rejected as corrupt before their output
+is retained. The library may allocate bounded input/central-directory buffers and
+native output chunks before the sink sees them; these safeguards are not a claim
+of a perfect hostile-input sandbox or zero transient allocation.
+
+Only harmless empty directories are skipped. Non-JSON files still count against
+limits and undergo integrity checks; their content is never rendered/executed.
+Encrypted entries, symbolic links, split archives, unsupported compression, and
+ambiguous/malformed metadata are rejected. Valid unsorted central directories are
+allowed, and their entry order is retained. Nested archive extensions (ZIP, 7z,
+RAR, TAR, gzip, bzip2, xz, zstd, and common variants) are rejected. ZIP/gzip/7z/RAR
+magic also catches common disguised archives. This is not universal file-type
+identification for every renamed archive format.
+
+Paths are logical, never filesystem targets. Backslashes become `/`, Unicode is
+normalized to NFC, and empty/`.` segments are removed. Absolute/UNC paths,
+drive/colon paths, controls/NULs, `..` segments, and empty logical names fail.
+Duplicate normalized names (including directories and ignored files) reject the
+whole archive; no overwriting occurs. Comparison is case-sensitive because these
+are in-memory logical names, not a Windows filesystem. Safe normalized names are
+retained as source filenames; source keys are deterministic selection-local
+`source:0`, `source:1`, etc., never canonical identity.
+
+Expected failures are discriminated `IngestionResult` values. Codes distinguish
+unsupported type/browser/archive entry, raw/per-entry size, read failure,
+malformed JSON, JSON resource budgets, corruption, entry count, extracted size,
+ratio, nested archives, duplicate names, unsafe paths, no JSON, no record
+collection, and neutral inspection failure. Filename, entry, applicable limit,
+and import-core failure context are retained internally where available; UI
+copy is concise and never exposes stack traces. Cancellation rejects only to
+the orchestrator and is not presented as an error.
 
 ## Adding material versus updating material
 

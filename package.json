@@ -1,15 +1,24 @@
 {
   "name": "openstudy",
   "private": true,
+  "engines": {
+    "node": "^22.22.0 || ^24.0.0 || >=26.0.0"
+  },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace @openstudy/schema",
+    "dev": "npm run dev --workspace @openstudy/web --",
+    "build": "npm run build --workspaces",
     "check:json-schema": "npm run check:json-schema --workspace @openstudy/schema",
     "generate:json-schema": "npm run generate:json-schema --workspace @openstudy/schema",
-    "test": "npm run test --workspace @openstudy/schema",
-    "typecheck": "npm run typecheck --workspace @openstudy/schema",
+    "test": "npm run test --workspaces",
+    "test:e2e": "npm run test:e2e --workspace @openstudy/web --",
+    "typecheck": "npm run typecheck --workspaces",
     "verify": "npm run typecheck && npm run test && npm run build && npm run check:json-schema"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }

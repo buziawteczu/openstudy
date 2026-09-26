@@ -32,8 +32,9 @@ test("JSON selection, reset, same-file retry and malformed JSON stay local", asy
   expect(requests).toEqual([]);
 });
 
-test("ZIP extraction discovers independent JSON sources without network processing", async ({ page }) => {
+test("ZIP extraction discovers sources and rejects disguised archives without network processing", async ({ page }) => {
   const bytes = await zipFixture([["material/", ""], ["material/one.json", fixture.toString("utf8")], ["two.json", '[{"other":true}]'], ["notes.txt", "Ignored"]], true);
+  const nested = await zipFixture([["renamed.txt", await zipFixture([])]]);
   await page.goto("/import");
   const requests: string[] = [];
   await page.route("**/*", (route) => { requests.push(route.request().url()); return route.abort(); });
@@ -43,5 +44,9 @@ test("ZIP extraction discovers independent JSON sources without network processi
   await expect(page.getByRole("status")).toContainText("2 collections discovered");
   await expect(page.getByRole("status")).toContainText("3 records discovered");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Choose another file" }).click();
+  await page.getByLabel("Study material file").setInputFiles({ name: "nested.zip", mimeType: "application/zip", buffer: Buffer.from(nested) });
+  await expect(page.getByRole("alert")).toHaveText("Archives inside a ZIP are not supported. Choose the JSON files directly.");
+  await expect(page.getByRole("heading", { name: "Ready for mapping" })).toHaveCount(0);
   expect(requests).toEqual([]);
 });

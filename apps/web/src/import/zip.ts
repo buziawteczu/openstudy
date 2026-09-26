@@ -85,28 +85,39 @@ export async function inspectZip(bytes: Uint8Array, filename: string, limits: In
       const chunks: Uint8Array[] = [];
       const prefix: number[] = [];
       let size = 0;
+      // Stream cleanup can replace (or swallow) a sink rejection on some
+      // runtimes. Keep our first policy failure outside the stream machinery.
+      let sinkFailure: IngestionError | undefined;
       const sink = new WritableStream<Uint8Array>({
         write(chunk) {
-          signal.throwIfAborted();
-          size += chunk.byteLength;
-          total += chunk.byteLength;
-          if (total > limits.extractedBytes) fail("extracted-size-limit", filename, { entry: name, limit: limits.extractedBytes });
-          if (json && size > limits.jsonBytes) fail("file-too-large", filename, { entry: name, limit: limits.jsonBytes });
-          if (size > Math.max(1, entry.compressedSize) * limits.compressionRatio) {
-            fail("compression-ratio-limit", filename, { entry: name, limit: limits.compressionRatio });
+          try {
+            signal.throwIfAborted();
+            size += chunk.byteLength;
+            total += chunk.byteLength;
+            if (total > limits.extractedBytes) fail("extracted-size-limit", filename, { entry: name, limit: limits.extractedBytes });
+            if (json && size > limits.jsonBytes) fail("file-too-large", filename, { entry: name, limit: limits.jsonBytes });
+            if (size > Math.max(1, entry.compressedSize) * limits.compressionRatio) {
+              fail("compression-ratio-limit", filename, { entry: name, limit: limits.compressionRatio });
+            }
+            for (let i = 0; i < chunk.length && prefix.length < 8; i += 1) prefix.push(chunk[i]!);
+            if (archiveMagic(prefix)) fail("nested-archive-unsupported", filename, { entry: name });
+            // Non-JSON content is verified/counted and discarded, never rendered.
+            if (json) chunks.push(chunk);
+          } catch (error) {
+            if (error instanceof IngestionError) sinkFailure ??= error;
+            throw error;
           }
-          for (let i = 0; i < chunk.length && prefix.length < 8; i += 1) prefix.push(chunk[i]!);
-          if (archiveMagic(prefix)) fail("nested-archive-unsupported", filename, { entry: name });
-          // Non-JSON content is verified/counted and discarded, never rendered.
-          if (json) chunks.push(chunk);
         },
       });
       try {
         await entry.getData(sink, { signal });
       } catch (error) {
-        if (signal.aborted || error instanceof IngestionError) throw error;
+        if (signal.aborted) throw error;
+        if (sinkFailure !== undefined) throw sinkFailure;
+        if (error instanceof IngestionError) throw error;
         fail("corrupt-zip", filename, { entry: name });
       }
+      if (sinkFailure !== undefined) throw sinkFailure;
       if (size !== entry.uncompressedSize) fail("corrupt-zip", filename, { entry: name });
       if (json) {
         const content = new Uint8Array(size);

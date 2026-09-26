@@ -161,6 +161,39 @@ describe("bounded ZIP ingestion", () => {
     try { await expectCode(input, "unsupported-browser"); }
     finally { vi.unstubAllGlobals(); }
   });
+  const sinkFailureCases = [
+    { code: "nested-archive-unsupported", overrides: {}, chunk: new Uint8Array([0x50, 0x4b, 5, 6]) },
+    { code: "extracted-size-limit", overrides: { extractedBytes: 8 }, chunk: new Uint8Array(16) },
+    { code: "file-too-large", overrides: { jsonBytes: 8 }, chunk: new Uint8Array(16) },
+    { code: "compression-ratio-limit", overrides: { compressionRatio: 2 }, chunk: new Uint8Array(16) },
+  ] satisfies { code: string; overrides: Record<string, number>; chunk: Uint8Array }[];
+  it.each(sinkFailureCases.flatMap((scenario) => [
+    { ...scenario, cleanup: "replaces" },
+    { ...scenario, cleanup: "swallows" },
+  ]))("preserves $code when reader cleanup $cleanup the sink error", async ({ code, overrides, chunk, cleanup }) => {
+    const entry = {
+      filename: "a.json", directory: false, encrypted: false, symlink: false,
+      diskNumberStart: 0, compressionMethod: 0, compressedSize: 1, uncompressedSize: 1,
+      getData: async (sink: WritableStream<Uint8Array>) => {
+        const writer = sink.getWriter();
+        try {
+          try { await writer.write(chunk); }
+          catch {
+            // Model runtimes/readers that obscure the original policy rejection.
+            if (cleanup === "replaces") throw new TypeError("Invalid state: WritableStream is closed");
+          }
+        } finally { writer.releaseLock(); }
+      },
+    } as unknown as Entry;
+    const spy = vi.spyOn(ZipReader.prototype, "getEntriesGenerator").mockImplementation(async function* () {
+      yield entry;
+      return true;
+    });
+    try {
+      const result = await expectCode(new File([new Uint8Array(1)], "cleanup.zip"), code, overrides);
+      expect(result).toMatchObject({ error: { entry: "a.json" } });
+    } finally { spy.mockRestore(); }
+  });
   it("rejects encrypted metadata before extracting", async () => {
     const bytes = await zipFixture([["a.json", fixture]]);
     const view = new DataView(bytes.buffer);

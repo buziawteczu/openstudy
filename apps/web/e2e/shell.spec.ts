@@ -29,6 +29,12 @@ test("Library → Import → Library works in a focused responsive canvas", asyn
   await expectFocusedLayout(page);
   const action = page.getByRole("link", { name: "Import study set" });
   await expect(action).toBeInViewport();
+  // Guard the production Tailwind pipeline, not just React's DOM output.
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(page.locator("html")).toHaveCSS("background-color", "rgb(245, 246, 242)");
+  await expect(action).toHaveCSS("background-color", "rgb(36, 93, 76)");
+  await expect(action).toHaveCSS("border-radius", "10px");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-weight", "650");
   const bounds = await action.boundingBox();
   expect(bounds!.height).toBeGreaterThanOrEqual(44);
   expect(bounds!.width).toBeGreaterThanOrEqual(44);

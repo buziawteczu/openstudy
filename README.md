@@ -6,7 +6,7 @@ Importing, persistence, and study modes are not implemented yet.
 
 ## Repository
 
-- `apps/web`: React/TypeScript/Vite frontend, component tests, and Playwright smoke tests.
+- `apps/web`: React/TypeScript/Vite/Tailwind CSS frontend, component tests, and Playwright smoke tests.
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
 - `docs`: product and architecture contracts.
 
@@ -56,8 +56,15 @@ and pushes to `main`. No deployment is configured.
 
 Pages share a centered canvas with a `45rem` maximum width (about 720px at the
 default font size), fluid gutters, and a single column. Desktop space provides
-breathing room; the canvas has no device frame. CSS tokens in
-`apps/web/src/styles/global.css` define the small styling foundation.
+breathing room; the canvas has no device frame.
+
+Tailwind CSS v4 is integrated through the official Vite plugin. Its CSS-first
+`@theme` in `apps/web/src/styles/global.css` defines semantic colors, typography,
+spacing, and radii (for example, `bg-accent`, `text-muted`, and `rounded-surface`).
+Pages use utility classes; shared link treatments and accessible focus styles
+live in the stylesheet's component and base layers. Source scanning is scoped
+to the frontend `src` directory, independent of the workspace command location.
+No separate Tailwind JavaScript or PostCSS configuration is needed.
 
 History routing uses `/`, `/import`, and a fallback for unknown paths. A future
 static host must serve `index.html` for application routes so direct links work.

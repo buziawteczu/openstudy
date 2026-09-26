@@ -4,7 +4,71 @@
 
 The import pipeline converts untrusted external material into a validated canonical StudySet candidate. It is separate from persistence and study behavior.
 
-V1 supports JSON and ZIP files containing JSON. Document extraction, AI-assisted generation, and additional adapters are future concerns that must enter through the same canonical boundary.
+The planned V1 import path is JSON and ZIP files containing JSON. Document extraction, AI-assisted generation, and additional adapters are future concerns that must enter through the same canonical boundary.
+
+## Implemented neutral boundary (`@openstudy/import-core`)
+
+Conceptual PR 4 implements contracts and inspection only. Real ingestion and
+mapping are still future work; the web `/import` page remains a placeholder.
+
+| Stage | Representation and owner |
+| --- | --- |
+| Raw source | User file/binary/archive; ingestion/extraction owns reading and safety. No raw-file API in import-core. |
+| Normalized structured source | `NormalizedStructuredSource`: upstream `SourceDescriptor` plus nested serializable `SourceValue`; already read/extracted, not canonical content. |
+| Mapping candidate | `MappingCandidate`: source descriptor, adapter ID, and explicit `RecordCollection[]`; source field names/values remain opaque data. |
+| Canonical candidate / StudySet | Later mapping and identity decisions produce a canonical candidate; schema validation/migration gates persistence and study. |
+
+The structured path is therefore:
+
+```text
+raw input -> ingestion/extraction -> normalized structured source
+          -> structured adapter -> neutral mapping candidate + inspection
+          -> reviewed mapping -> canonical candidate -> schema validation
+          -> explicit lifecycle/persistence decision -> study
+```
+
+`StructuredSourceAdapter.inspect` recognizes an already-normalized structure and
+returns `ImportResult<MappingCandidate>`. It preserves the source descriptor and
+reports its adapter ID. It may identify source-specific record collections but
+must not interpret question semantics, generate canonical IDs, or access I/O.
+There is no production adapter or runtime registry in this PR.
+
+`inspectMappingCandidate` validates an explicitly supplied neutral candidate and
+reports collection counts, top-level field presence/types, and the first three
+present sample values with record indexes. Nested values remain intact, so later
+mapping can inspect them without premature stringification. No collection is
+automatically selected for questions. Empty collections remain visible; a
+candidate with no collections is a typed failure. Missing fields and explicit
+null values are different.
+
+Only finite numbers, strings, booleans, null, dense arrays, and plain data objects
+are normalized source values. Inspection rejects non-serializable values and
+returns detached snapshots without mutating the caller. Field/type ordering is
+locale-independent; collection and sample ordering follows the supplied input.
+Expected failures use `unsupported-source`, `no-record-collection`, or
+`invalid-normalized-data` with machine-readable context, not UI error copy.
+
+Source/collection `key` values are temporary import-local tokens. Collection
+keys are unique within a candidate; records use local array positions rather
+than invented IDs. Neither keys nor source fields named `id` are canonical
+StudySet/Question/Choice IDs or deduplication evidence. Adapter/format/media-type
+metadata stays upstream and is not automatically copied into canonical Source.
+
+In conceptual PR 5, JSON and safe ZIP ingestion will read, parse, and normalize
+user material before a structured adapter exposes collections. It will own
+parser failures and file/archive resource limits; this PR adds none of that code.
+Each JSON input or extracted JSON entry can supply its own normalized source;
+combining candidates across entries belongs to the later import use case.
+Already-declared canonical material still follows the explicit schema-version
+validation/migration path, never heuristic mapping by import-core.
+
+Future DOCX/PDF processing can retain separate `SourceDocument` and
+`NormalizedDocument` representations, then project suitable tables/records into
+this structured boundary. Paragraphs/pages/images need not be forced into record
+arrays. Document-specific extraction/projection contracts remain deferred until
+a real extractor needs them; study continues to consume validated canonical data.
+
+See [the package README](../packages/import-core/README.md) for the public API.
 
 ## V1 structured import
 

@@ -21,7 +21,8 @@ This document defines boundaries and dependency direction for OpenStudy before i
 | --- | --- | --- |
 | Source ingestion | Read supported user-selected inputs and enforce input safety limits | Study behavior, semantic question identity |
 | Document extraction | Future conversion of binary documents into structured document content | Question generation, schema migration |
-| Import and mapping | Detect record collections, map source fields, normalize values, and produce a canonical candidate | Persistence, study sessions |
+| Neutral import boundary | Describe normalized structured input, expose neutral record collections through adapter contracts, and inspect counts/fields/sample values | File parsing, question semantics, canonical IDs, mapping decisions, persistence |
+| Mapping | Map reviewed neutral record collections, normalize canonical values, and produce a canonical candidate | File parsing, persistence, study sessions |
 | Schema and migration | Define canonical data, validate it, and deterministically migrate supported old schema versions | Source parsing, AI inference |
 | StudySet lifecycle | Create revisions, add or replace material, preserve provenance, and resolve identity decisions | User mastery algorithms |
 | Study engine | Select questions and apply Learn, Flashcard, and Test rules to canonical questions | Import formats, file access, UI rendering |
@@ -41,7 +42,13 @@ JSON or ZIP of JSON
 source ingestion and safety checks
         |
         v
-record detection and field mapping
+normalized structured source
+        |
+        v
+adapter projection to neutral mapping candidate and inspection
+        |
+        v
+reviewed field mapping and canonical candidate creation
         |
         v
 mapped candidate, or declared canonical data
@@ -88,7 +95,7 @@ canonical StudySet candidate
 
 ## Canonical boundary
 
-All import paths converge on the same StudySet schema before persistence and study. The schema should eventually be reusable as `@openstudy/schema`, but PR 0 does not create a package or decide independent release mechanics.
+All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns only the upstream structured source/collection boundary and deterministic inspection; it does not produce StudySets or depend on the schema. See [the import pipeline](import-pipeline.md) for the implemented contracts and deferred ingestion/mapping work.
 
 The canonical model makes the question type explicit. V1 implements only single-choice behavior. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 
@@ -114,7 +121,7 @@ application use cases
 storage boundary <---- IndexedDB adapter now / hosted adapters later
 ```
 
-- Source adapters depend on import contracts and the canonical schema, not on the study engine.
+- Structured source adapters depend on import-core contracts, not the canonical schema or study engine. The later mapping and canonical validation boundary depends on the schema.
 - The study engine depends on canonical content and small progress-facing contracts, not on source adapters or storage technology.
 - Persistence adapters implement storage boundaries defined by application needs.
 - UI coordinates use cases and renders state; it does not become the only place where validation or study rules exist.
@@ -161,7 +168,8 @@ Confidential or private sharing would require a separate threat model covering a
 
 The architecture needs seams for the following without implementing registries now:
 
-- **Import adapters:** source records to canonical candidates.
+- **Structured source adapters:** normalized structured inputs to neutral record collections ready for later mapping.
+- **Mapping:** reviewed source fields to canonical candidates; no mapping implementation exists yet.
 - **Document extractors:** binary sources to `NormalizedDocument`.
 - **Question generators:** normalized content to reviewable candidates; deterministic/manual operation must remain possible.
 - **Schema migrations:** explicit version-to-version transforms.

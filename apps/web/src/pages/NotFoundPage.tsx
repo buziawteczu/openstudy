@@ -1,0 +1,19 @@
+import { Link } from "react-router";
+
+export function NotFoundPage() {
+  return (
+    <>
+      <title>Page not found | OpenStudy</title>
+      <div className="page-heading">
+        <p className="eyebrow">OpenStudy</p>
+        <h1 tabIndex={-1}>Page not found</h1>
+        <p className="page-description">
+          This page doesn’t exist. Let’s get you back to your library.
+        </p>
+        <Link className="back-link" to="/">
+          <span aria-hidden="true">←</span> Back to library
+        </Link>
+      </div>
+    </>
+  );
+}

@@ -19,7 +19,9 @@ if (process.argv.includes("--check")) {
     process.exit();
   }
 
-  if (existing !== serialized) {
+  const normalizedExisting = existing.replace(/\r\n/g, "\n");
+
+  if (normalizedExisting !== serialized) {
     console.error(
       "study-set.schema.json is stale; run generate:json-schema and commit the result",
     );

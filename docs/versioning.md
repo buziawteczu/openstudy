@@ -23,7 +23,9 @@ Every canonical StudySet declares a schema version, conceptually:
 }
 ```
 
-Schema `1.0.0` uses a full semantic-version string and the current validator accepts exactly `"1.0.0"`. Unversioned JSON is source data that needs mapping unless a documented legacy import rule says otherwise. PR 1 implements no migration or version negotiation.
+Schema `1.0.0` uses a full semantic-version string and is the first and only published canonical version. Unversioned JSON is source data that needs mapping unless a documented legacy import rule says otherwise.
+
+Version detection inspects only the top-level envelope and declared `schemaVersion` before any full canonical validation. It reports invalid top-level input, missing declarations, malformed declarations, unsupported historical versions, and unsupported future versions as distinct typed failures. Strict `major.minor.patch` syntax identifies a version; it does not define how to transform data.
 
 ## Compatibility contract
 
@@ -33,9 +35,9 @@ OpenStudy guarantees backward compatibility for supported historical versions: n
 
 Forward compatibility is not guaranteed. An older OpenStudy reader does not have to understand a future schema version. Canonical objects are strict, so a `1.0.0` reader may reject a future `1.1.0` document containing an optional field it does not know. This is intentional.
 
-Unknown future schema versions are rejected explicitly. They are never treated as the current schema or interpreted heuristically. Migration does not depend on network access, AI, Jev, or source-document reprocessing.
+Unknown future schema versions are rejected explicitly. They are never treated as the current schema or interpreted heuristically. A historical version is supported only when it has an explicitly registered path to the current version and compatibility fixtures.
 
-Importing and migrating must remain non-destructive until the user confirms persistence. PR 1 implements no migration or version-dispatch machinery; that belongs to PR 2.
+Migration returns a typed compatibility result. Normal incompatibility, a missing path, a step failure, and final canonical validation failure do not require callers to catch a generic `Error`. Unexpected registry configuration errors remain programmer errors.
 
 ## Deterministic migrations
 
@@ -49,12 +51,17 @@ Each step should:
 
 - accept one declared input version;
 - produce one declared output version;
-- preserve stable StudySet and question identities unless the migration contract explicitly requires otherwise;
+- preserve stable StudySet, source, category, question, and choice identities;
+- preserve the StudySet content revision for representation-only changes;
 - report data it cannot transform safely;
 - avoid environmental inputs such as time, randomness, locale, network responses, or model output;
 - have fixtures for valid, invalid, and edge-case data.
 
-Direct shortcuts such as `1.0 -> 1.2` may be added for performance only if they are behaviorally equivalent and tested. An LLM must never interpret an old schema at runtime.
+The registry permits one explicit outgoing edge per source version. Migration follows those edges in order and fails if a required edge is absent. It does not infer a path from semantic-version ordering, silently skip a version, or dynamically discover migration code. An LLM must never interpret an old schema at runtime.
+
+Migration steps are pure and side-effect free. They do not use network or database access, the current time, randomness, locale-dependent behavior, generated IDs, AI, Jev, embeddings, or other external services. The same input must produce the same output, and caller-owned input is never mutated in place.
+
+After the final step, the current canonical Zod schema validates the complete result. A migration function returning an object is not proof that its output is canonical. Zod remains authoritative for cross-record identity and reference invariants.
 
 Migration changes representation. It does not decide whether newly imported source content is the same question or whether progress should transfer; those are StudySet lifecycle decisions.
 
@@ -101,26 +108,29 @@ The future `@openstudy/schema` package, web application, and canonical schema ma
 
 They should not be assumed equal. Whether the schema package is released independently from the app remains open until external consumers or multiple internal packages create a concrete need. It should remain in this repository initially.
 
-## Compatibility fixtures
+## Migration registry and compatibility fixtures
 
-The future test suite should retain:
+The production migration table is explicit and currently empty because `1.0.0` is the only real schema version. Current-version data applies zero migration steps and is then validated against `StudySetSchema`.
 
-- smallest valid file for each schema version;
-- representative full files;
-- files for each supported question type;
-- boundary and Unicode cases;
-- invalid files with expected issue codes;
-- every migration input and expected output;
-- round-trip examples where export stability is promised;
-- future-version and unknown-question-type failures.
+Serialized fixtures live under `packages/schema/test/fixtures/<schemaVersion>/`. The `1.0.0` directory contains minimal, categorized, and multi-source canonical files. Future version directories are added only when those versions actually exist. Synthetic versions used to test registry chaining remain inside test code and are never registered as OpenStudy schema versions.
 
-Fixtures should be reviewed as public compatibility contracts, not incidental test data.
+Fixtures are public compatibility contracts rather than incidental test data. Every supported historical fixture must migrate deterministically to the current schema and pass final Zod validation.
+
+To add a new schema version:
+
+1. define the new canonical schema;
+2. add serialized compatibility fixtures;
+3. implement the explicit previous-version to new-version migration;
+4. register the migration;
+5. migrate every supported historical fixture to current;
+6. validate the final values against the current schema;
+7. update supported-version documentation.
+
+This is not automatic semantic-version conversion. If a safe deterministic transform is unavailable, compatibility fails explicitly.
 
 ## Open questions
 
-- How will PR 2 dispatch exact historical versions and chain deterministic migrations?
 - Which historical versions will each application release support?
-- What error contract will distinguish unknown future versions from known but unsupported historical versions?
 - What snapshot or change-set retention model accompanies the positive revision number?
 - Which content operations increment revision, including no-op imports?
 - When should the schema package and web application version independently?

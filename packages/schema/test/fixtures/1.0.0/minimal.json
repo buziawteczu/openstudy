@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "study-set.railway-basics",
+  "revision": 1,
+  "title": "Railway licence basics",
+  "sources": [
+    {
+      "id": "source.questions-json",
+      "label": "Original question bank",
+      "originalFilename": "questions.json"
+    }
+  ],
+  "categories": [],
+  "questions": [
+    {
+      "id": "question.signal-stop",
+      "type": "single-choice",
+      "prompt": "What does a stop signal require?",
+      "choices": [
+        {
+          "id": "choice.stop",
+          "text": "Stop before passing the signal"
+        },
+        {
+          "id": "choice.continue",
+          "text": "Continue at the current speed"
+        }
+      ],
+      "correctChoiceId": "choice.stop"
+    }
+  ]
+}

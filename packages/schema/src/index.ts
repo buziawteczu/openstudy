@@ -15,6 +15,25 @@ export {
   type PortableId,
 } from "./shared.js";
 export {
+  detectSchemaVersion,
+  migrateStudySet,
+  type CanonicalValidationIssue,
+  type FinalCanonicalValidationError,
+  type InvalidInputEnvelopeError,
+  type MalformedSchemaVersionError,
+  type MigrationStepFailureError,
+  type MigrationTransition,
+  type MissingSchemaVersionError,
+  type MissingMigrationPathError,
+  type SchemaVersionCompatibility,
+  type SchemaVersionDetectionError,
+  type SchemaVersionDetectionResult,
+  type StudySetMigrationError,
+  type StudySetMigrationResult,
+  type UnsupportedFutureVersionError,
+  type UnsupportedHistoricalVersionError,
+} from "./migration.js";
+export {
   SourceSchema,
   QuestionProvenanceSchema,
   type QuestionProvenance,

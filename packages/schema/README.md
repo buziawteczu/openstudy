@@ -4,7 +4,7 @@ Canonical StudySet validation and TypeScript types for OpenStudy. This package i
 
 ## Current schema version
 
-`CURRENT_SCHEMA_VERSION` is `"1.0.0"`. Canonical files must declare exactly this version. Migrations are intentionally deferred to PR 2.
+`CURRENT_SCHEMA_VERSION` is `"1.0.0"`. It is the first and only published canonical schema version. The migration registry therefore contains zero production migration steps.
 
 The package release version is separate from the canonical `schemaVersion`.
 
@@ -111,6 +111,53 @@ const result = StudySetSchema.safeParse(unknownData);
 ```
 
 Zod issues retain paths to the affected fields. The schema rejects duplicate IDs, broken source/category references, invalid discriminators, empty text, and invalid single-choice answers.
+
+## Compatibility and migrations
+
+The public compatibility API separates version detection from canonical validation:
+
+```ts
+import {
+  detectSchemaVersion,
+  migrateStudySet,
+} from "@openstudy/schema";
+
+const detection = detectSchemaVersion(unknownData);
+const migration = migrateStudySet(unknownData);
+```
+
+`detectSchemaVersion` inspects only the top-level object and its own `schemaVersion` field. It distinguishes invalid envelopes, missing or malformed declarations, unsupported historical versions, unsupported future versions, the current version, and future explicitly supported historical versions. It does not first parse input as the current StudySet.
+
+`migrateStudySet` returns a discriminated result rather than throwing for normal compatibility failures. Its error codes are:
+
+- `invalid-input-envelope`
+- `missing-schema-version`
+- `malformed-schema-version`
+- `unsupported-historical-version`
+- `unsupported-future-version`
+- `missing-migration-path`
+- `migration-step-failure`
+- `final-canonical-validation-failure`
+
+For `1.0.0`, migration applies zero steps and validates the complete value with `StudySetSchema`. Zod remains authoritative for the final canonical result and all cross-record invariants. Validation returns a new value, does not mutate caller-owned input, and does not add defaults or strip unknown fields.
+
+Production steps live in the explicit table in `src/migration-steps.ts`. Each source version may have only one registered outgoing edge, so dispatch cannot be ambiguous. At package initialization, every registered source must have a complete, cycle-free path to the current version; an incomplete production registry is a configuration error, not a supported historical version. Synthetic test registries remain free to exercise missing paths and cycles. Path selection follows only registered edges; semantic-version ordering classifies a declaration as historical or future but never supplies a transformation or allows a version to be skipped.
+
+Migration steps must be pure and deterministic. They must not use time, randomness, locale-sensitive behavior, network or database access, generated IDs, AI, Jev, embeddings, or external services. Representation-only migrations preserve `StudySet.id`, `StudySet.revision`, and all source, category, question, and choice IDs. They never increment the content revision.
+
+Serialized compatibility fixtures are stored by exact version under `test/fixtures/<schemaVersion>/`. No fixture directory is created until that canonical version actually exists.
+
+### Adding a canonical schema version
+
+1. Define the new canonical schema.
+2. Add serialized compatibility fixtures for the new version.
+3. Implement an explicit previous-version to new-version migration.
+4. Register the migration in `src/migration-steps.ts`.
+5. Migrate all supported historical fixtures to the current version.
+6. Validate every final result against the current Zod schema.
+7. Update the supported-version documentation.
+
+A migration is explicit code, not automatic semantic-version conversion. If data cannot be transformed deterministically, the migration must fail.
 
 ## JSON Schema
 

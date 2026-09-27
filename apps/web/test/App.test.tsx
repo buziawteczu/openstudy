@@ -36,7 +36,7 @@ describe("OpenStudy application shell", () => {
     expect(within(emptyState).getByRole("link", { name: "Import study set" })).toHaveAttribute("href", "/import");
   });
 
-  it("navigates to the Import placeholder and focuses its heading", async () => {
+  it("navigates to Import and focuses its heading", async () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(screen.getByRole("link", { name: "Import study set" }));
@@ -45,11 +45,12 @@ describe("OpenStudy application shell", () => {
     expect(screen.queryByText("No study sets yet")).not.toBeInTheDocument();
   });
 
-  it("renders a direct Import visit with no upload controls", () => {
-    const { container } = renderApp("/import");
+  it("renders a direct Import visit with a labeled local file picker", () => {
+    renderApp("/import");
     expect(screen.getByRole("heading", { level: 1, name: "Import study material" })).toBeInTheDocument();
-    expect(screen.getByText(/Importing JSON and ZIP study material will be available in a later update/)).toBeInTheDocument();
-    expect(container.querySelector("input")).toBeNull();
+    expect(screen.getByText(/Choose a JSON file or ZIP containing JSON files/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Study material file")).toHaveAttribute("accept", ".json,.zip");
+    expect(screen.getByText("Files are processed on this device.")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 

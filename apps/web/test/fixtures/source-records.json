@@ -1,0 +1,15 @@
+[
+  {
+    "questionText": "What is a safe first step?",
+    "answers": ["Inspect", "Guess"],
+    "correctIndex": 0,
+    "chapter": "Safety",
+    "details": { "note": "Keep source fields unchanged." }
+  },
+  {
+    "questionText": "Where are files processed?",
+    "answers": ["On this device", "On a server"],
+    "correctIndex": 0,
+    "chapter": "Privacy"
+  }
+]

@@ -1,4 +1,5 @@
 export { inspectMappingCandidate } from "./inspection.js";
+export { structuredRecordsAdapter } from "./structured-records.js";
 export type {
   CollectionInspection,
   FieldInspection,

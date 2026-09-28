@@ -44,8 +44,8 @@ test("Library → Import → Library works in a focused responsive canvas", asyn
   await expect(page).toHaveURL(/\/import$/);
   await expect(page).toHaveTitle("Import | OpenStudy");
   await expect(page.getByRole("heading", { level: 1, name: "Import study material" })).toBeFocused();
-  await expect(page.getByText(/Choose a JSON file or ZIP/)).toBeVisible();
-  await expect(page.getByLabel("Study material file")).toHaveAttribute("accept", ".json,.zip");
+  await expect(page.getByText(/Choose a DOCX, PDF with selectable text, JSON, or ZIP/)).toBeVisible();
+  await expect(page.getByLabel("Study material file")).toHaveAttribute("accept", ".docx,.pdf,.json,.zip");
   const pickerBounds = await page.getByLabel("Study material file").boundingBox();
   expect(pickerBounds!.height).toBeGreaterThanOrEqual(44);
   await expectFocusedLayout(page);

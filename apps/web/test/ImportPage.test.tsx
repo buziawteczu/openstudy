@@ -34,7 +34,7 @@ describe("Import screen", () => {
   it("reports an unsupported file rather than malformed JSON", async () => {
     const user = userEvent.setup({ applyAccept: false });
     await user.upload(renderImport(), new File([fixture], "source.csv"));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Choose a JSON file or a ZIP containing JSON files.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Choose a DOCX, PDF with selectable text, JSON, or ZIP containing JSON files.");
   });
   it("announces ZIP success with multiple sources and collections", async () => {
     const user = userEvent.setup();
@@ -79,7 +79,7 @@ describe("Import screen", () => {
     await user.tab();
     await user.tab();
     expect(input).toHaveFocus();
-    expect(input).toHaveAccessibleDescription(/Choose a JSON file.*Files are processed on this device/);
+    expect(input).toHaveAccessibleDescription(/Choose a DOCX.*Files are processed on this device/);
   });
   it("announces reading and lets the user cancel without a stale result", async () => {
     const user = userEvent.setup();

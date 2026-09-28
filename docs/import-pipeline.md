@@ -4,13 +4,16 @@
 
 The import pipeline converts untrusted external material into a validated canonical StudySet candidate. It is separate from persistence and study behavior.
 
-The planned V1 import path is JSON and ZIP files containing JSON. Document extraction, AI-assisted generation, and additional adapters are future concerns that must enter through the same canonical boundary.
+The implemented local inputs are JSON, ZIP containing JSON, DOCX, and PDF with
+selectable text. They stop at neutral inspection/extraction. Mapping, canonical
+candidate creation, persistence, and generation remain future work.
 
 ## Implemented neutral boundary (`@openstudy/import-core`)
 
 Conceptual PR 4 established contracts and inspection. Conceptual PR 5 adds
 local JSON/ZIP ingestion at `/import` and a format-neutral record-array adapter.
-The implemented flow stops at neutral inspection; mapping is still future work.
+Conceptual PR 6 adds document contracts, DOCX extraction, and text-PDF extraction.
+Both flows stop before mapping; documents are not StudySets or record arrays.
 
 | Stage | Representation and owner |
 | --- | --- |
@@ -67,11 +70,10 @@ Even a `schemaVersion` field remains opaque at this stage. The later canonical
 import path must explicitly validate/migrate declared canonical material; generic
 collection discovery is not a substitute for that boundary.
 
-Future DOCX/PDF processing can retain separate `SourceDocument` and
-`NormalizedDocument` representations, then project suitable tables/records into
-this structured boundary. Paragraphs/pages/images need not be forced into record
-arrays. Document-specific extraction/projection contracts remain deferred until
-a real extractor needs them; study continues to consume validated canonical data.
+DOCX/PDF extraction retains `SourceDocument`, `ExtractedDocument`, and
+`NormalizedDocument` representations. Future reviewed mapping may project suitable
+tables into the structured boundary; paragraphs/pages are not forced into record
+arrays. Study continues to consume validated canonical data only.
 
 See [the package README](../packages/import-core/README.md) for the public API.
 
@@ -86,7 +88,7 @@ and UI messages). Browser APIs do not enter import-core. Vite/TypeScript resolve
 the workspace's public source entry so clean-checkout checks do not require a
 pre-existing package `dist` directory.
 
-The picker supports `.json` and `.zip`, case-insensitively; MIME hints are not
+The picker supports `.docx`, `.pdf`, `.json` and `.zip`, case-insensitively; MIME hints are not
 trusted. Raw sizes are checked before reading. JSON is decoded as strict UTF-8
 (an initial UTF-8 BOM is tolerated) and parsed once with `JSON.parse`; non-finite
 numbers, excessive depth, or excessive node count fail before inspection. Field
@@ -105,9 +107,9 @@ Success says **Ready for mapping**, with file/collection/record counts and no
 Continue button. Nothing is added to the Library. Any invalid JSON entry fails
 the entire attempt rather than silently returning a partial import.
 
-### Runtime dependency and browser baseline
+### Structured runtime dependency and browser baseline
 
-The only new third-party runtime dependency is `@zip.js/zip.js` 2.18.2 (locked),
+Structured ingestion uses `@zip.js/zip.js` 2.18.2 (locked),
 using the tree-shakable `lib/zip-core-native.js` entry point, not its filesystem
 API or full WASM archive bundle. It supplies central-directory inspection,
 streamed extraction, CRC-32 checks, and strict local-header/integrity checks.
@@ -332,30 +334,179 @@ Importers produce provenance metadata alongside candidates. The StudySet lifecyc
 
 PR 0 does not decide whether a minimal `sourceRef` lives on each Question or whether all details live in a separate contribution relation. The design must support multiple contributing sources without copying document structures into core question logic.
 
-## Future document extraction
+## Implemented document extraction
 
 Document formats follow a longer pipeline:
 
 ```text
-DOCX / PDF / scan
+DOCX / PDF with selectable text
         |
         v
-SourceDocument
+SourceDocument (descriptor, format, byte count; not raw bytes)
         |
         v
-paragraphs / tables / pages / images / formatting
+ExtractedDocument (ordered, serializable source blocks)
         |
         v
 NormalizedDocument
         |
         v
-Importer or Generator
+STOP: content ready for future review/mapping
         |
         v
-reviewable StudySet candidate
+future reviewed mapping / optional generation -> canonical candidate -> validation
 ```
 
-Extraction and question generation are different responsibilities. OCR text or extracted tables are not automatically correct questions. V1 must not encode assumptions that all future inputs are arrays of question records.
+Raw File/Blob, source descriptor, extracted blocks, normalized document, mapping
+candidate, and StudySet are distinct stages. The web layer owns FileReader,
+ZIP/XML parsing and PDF.js. Import-core owns parser-free readonly contracts,
+line-ending normalization and summary counts. It has no runtime dependencies or
+browser/schema/storage coupling. `@openstudy/schema` is unchanged.
+
+`SourceDocument` wraps an import-local SourceDescriptor, `docx | pdf`, and byte
+length. `ExtractedDocument` preserves original extracted text;
+`NormalizedDocument` is a detached snapshot changing **only CRLF/CR to LF**.
+No trimming, summarization, translation, spelling changes, Unicode normalization,
+reordering, question/answer inference, or destructive minification occurs. Raw
+buffers and parser objects are not retained in the result or persisted.
+
+Block keys/locators are deterministic within the same extraction, not canonical
+identity. DOCX uses logical XML paths, including run positions; PDF uses 1-based
+page and 0-based item locators. Editing the source or changing the parser can
+change them. No DOM nodes, PDF.js instances, fonts or callbacks enter contracts.
+
+### DOCX approach and fidelity
+
+No extra DOCX runtime dependency is added. The mature existing zip.js native-stream
+reader verifies the OOXML package; the platform namespace-aware XML parser reads
+the main document and styles. This narrow approach keeps source runs and tables
+without a second ZIP parser or converting untrusted source content to rendered
+HTML. The format is described in the
+[Microsoft Open XML documentation](https://learn.microsoft.com/en-us/office/open-xml/word/structure-of-a-wordprocessingml-document).
+It is deliberately **not** a full Word renderer/style resolver.
+
+Preserved from the main body:
+
+- Ordered paragraphs (including empty ones), headings with an available outline
+  level, and paragraph/character style identifiers.
+- List roles, source numbering ID and nesting level. Automatic bullet/number
+  labels, restarts and numbering definitions are **not** resolved. Literal labels
+  remain text, not inferred answer choices.
+- Separate text runs, text/whitespace, tabs, breaks, direct bold/italic/underline,
+  simple inherited style flags and explicit formatting-off values. Complex style
+  toggles, theme/layout/font behavior are not fully reproduced.
+- Tables as ordered rows/cells with nested blocks/tables, column spans and
+  vertical-merge start/continuation metadata. No semantic table interpretation.
+- Hyperlink display text without following targets. Inline tracked changes retain
+  inserted/deleted wording and revision markers; changes are not accepted.
+- Media presence/inline markers without reading or rendering images. Unsupported
+  blocks have placeholders; unsupported inline features warn.
+
+Require normal `word/document.xml` and its regular DOCX content type. Transitional
+and strict Word namespaces are supported; unconventional main-part paths are not.
+XML is UTF-8 or BOM-marked UTF-16. Headers, footers, footnotes, endnotes and comments
+are omitted, with warnings when present. Unknown features, fields, drawings and
+complex revision/layout content require comparison with the original. The UI
+disclaims full Word layout and surfaces media/omitted-content warnings.
+
+All entries, including discarded media, count toward budgets and undergo CRC and
+output-size checks. Reject unsafe/duplicate names, encrypted/split/symlink entries,
+unsupported compression and ambiguous metadata. Macros/macro-enabled content types
+are unsupported. Required XML rejects DTD/entity declarations before DOM parsing.
+Relationships, embedded objects/scripts and altChunk content are never executed or
+fetched; no parser-produced HTML is injected.
+
+### PDF dependency, worker and fidelity
+
+The only added runtime dependency is **`pdfjs-dist` 6.3.289**, pinned in the web
+workspace. Mozilla's PDF.js supplies established browser PDF parsing and text
+extraction. Its official `legacy` browser build supplies compatibility shims useful
+for the supported Node test baseline. The existing PDF.js worker is bundled inline
+by Vite, not fetched after selection or loaded from a CDN. No extra application
+worker, OCR engine, competing PDF library or AI dependency is added. Its optional
+`@napi-rs/canvas` dependency is Node-side packaging, not browser rendering/OCR.
+See the [official PDF.js API](https://mozilla.github.io/pdf.js/api/draft/module-pdfjsLib.html).
+
+Retain all pages, including blank ones, page dimensions, parser item order,
+original item text, direction, transform/coordinates, width/height and line-break
+signals. Pages are sequential; text arrives in stream chunks. No positional
+sorting, column/table recognition, layout reconstruction, question/answer detection
+or font-based correctness inference occurs. PDF.js/source order can differ from
+visual order. PDF.js can itself lose whitespace/glyph fidelity; this is not a
+raw-text-perfect guarantee. Unusual fonts/CMaps may need unavailable glyph mapping:
+external font/CMap/WASM downloads are deliberately disabled, so extraction may fail
+instead of fetching a fallback. The parser+inline worker increases initial app
+download size (about 665 KB gzip for the total JavaScript bundle in this build).
+
+No canvases, images, actions/JavaScript, annotation layers, forms, attachments or
+remote content are rendered/executed. PDF media presence is `unknown`, with a
+media-not-extracted warning, rather than falsely `false`. Bytes are copied before
+worker transfer so caller buffers are not detached. Tasks/workers are destroyed
+on completion, failure and cancellation.
+
+If the document contains no text or fewer than ten non-whitespace text characters
+(a tunable implementation heuristic), return typed `no-extractable-text`: "We
+couldn't find enough selectable text in this PDF. Scanned PDFs aren't supported
+yet." This is not scan classification or a question/content-meaning heuristic;
+very short legitimate PDFs can be rejected. Mixed PDFs with enough total text
+succeed but retain/count/warn about pages without text. Password requests and encryption that
+opens with an empty password are explicitly unsupported. No password prompt,
+password cracking, or decryption workflow.
+
+### Document resource limits and errors
+
+Tunable defaults in `apps/web/src/import/limits.ts`:
+
+| Budget | Default |
+| --- | ---: |
+| Raw DOCX | 20 MiB |
+| Raw PDF | 25 MiB |
+| DOCX entries (all types) | 1,000 |
+| Total uncompressed DOCX content | 50 MiB |
+| Single DOCX XML/rels part | 8 MiB |
+| DOCX per-entry expansion ratio | 200:1 |
+| Required XML nodes/attributes across parts | 200,000 |
+| Required XML depth / style inheritance chain | 100 |
+| Document blocks (including table rows/cells) | 10,000 |
+| Extracted text characters | 2,000,000 |
+| PDF pages | 300 |
+| PDF text items across all pages | 100,000 |
+| Minimum non-whitespace PDF text characters | 10 |
+
+Raw sizes are checked before reading. ZIP declared/streamed sizes are checked
+before retaining parts. XML node/depth and output block/text budgets precede
+normalization. PDF pages are capped before text extraction; item/text caps apply
+per stream chunk. These are not permanent promises or a perfect hostile-input
+sandbox: XML DOMs, decompressor chunks and PDF.js internal objects may allocate
+before output checks. Byte caps are not heap caps. DOCX parsing runs on the main
+thread and cannot interrupt a synchronous DOM parse mid-call; surrounding checks
+and UI cancellation prevent stale results. Real mobile performance/memory
+profiling remains a follow-up.
+
+New typed errors: `corrupt-docx`, `corrupt-pdf`, `no-extractable-text`,
+`unsupported-encrypted-pdf`, `document-resource-limit`,
+`unsupported-document-content`, `document-browser-unsupported`. Reuse existing
+`file-too-large`, `read-failure`, `unsupported-file-type`. Raw stack traces are never
+shown. Stream cleanup preserves original policy failures rather than replacing
+them with generic corruption errors.
+
+### Local/privacy and next-stage intent
+
+All paths stay in memory/on-device: no uploads, parser APIs, analytics, AI or
+persistence. Libraries load with the application; browser tests block requests
+after app load for DOCX, PDF, scanned/encrypted PDF, JSON and ZIP. This is not a
+new offline-installable PWA.
+
+Success says **Document extracted / Content ready for review**, not "Questions
+found" or a completed import. Counts describe source structure. Shared accessible
+status/alerts, reset/cancel and file picker remain; summaries/long names wrap on
+the focused app canvas.
+
+Future review must distinguish **existing questions/tests** (faithful mapping)
+from **study material/notes** (possible optional generation). No selector is added
+because intent does not change extraction. No mapping UX, OCR, legacy DOC,
+question/answer detection, generation, canonical StudySet/IDs, storage, Library
+entries or study features are implemented.
 
 ## Future AI and Jev assistance
 

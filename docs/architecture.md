@@ -20,7 +20,7 @@ This document defines boundaries and dependency direction for OpenStudy before i
 | Boundary | Responsibility | Explicitly does not own |
 | --- | --- | --- |
 | Source ingestion | Read supported user-selected inputs and enforce input safety limits | Study behavior, semantic question identity |
-| Document extraction | Future conversion of binary documents into structured document content | Question generation, schema migration |
+| Document extraction | Local DOCX/text-PDF conversion into neutral ordered document blocks | Question generation, schema migration |
 | Neutral import boundary | Describe normalized structured input, expose neutral record collections through adapter contracts, and inspect counts/fields/sample values | File parsing, question semantics, canonical IDs, mapping decisions, persistence |
 | Mapping | Map reviewed neutral record collections, normalize canonical values, and produce a canonical candidate | File parsing, persistence, study sessions |
 | Schema and migration | Define canonical data, validate it, and deterministically migrate supported old schema versions | Source parsing, AI inference |
@@ -70,7 +70,7 @@ local persistence
 study engine ----> Learn / Flashcards / Test
 ```
 
-Future document input:
+Document input (implemented through normalization; later stages remain future):
 
 ```text
 binary source
@@ -95,7 +95,7 @@ canonical StudySet candidate
 
 ## Canonical boundary
 
-All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns only the upstream structured source/collection boundary and deterministic inspection; it does not produce StudySets or depend on the schema. See [the import pipeline](import-pipeline.md) for the implemented contracts and deferred ingestion/mapping work.
+All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. See [the import pipeline](import-pipeline.md) for implemented contracts and deferred mapping work.
 
 The canonical model makes the question type explicit. V1 implements only single-choice behavior. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 

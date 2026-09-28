@@ -6,7 +6,10 @@ export type IngestionErrorCode =
   | "too-many-archive-entries" | "extracted-size-limit" | "compression-ratio-limit"
   | "nested-archive-unsupported" | "duplicate-archive-entry" | "unsafe-archive-path"
   | "unsupported-archive-entry" | "unsupported-browser"
-  | "no-json-files" | "no-record-collection" | "inspection-failure";
+  | "no-json-files" | "no-record-collection" | "inspection-failure"
+  | "corrupt-docx" | "corrupt-pdf" | "no-extractable-text"
+  | "unsupported-encrypted-pdf" | "document-resource-limit"
+  | "unsupported-document-content" | "document-browser-unsupported";
 
 export interface IngestionFailure {
   readonly code: IngestionErrorCode;
@@ -33,7 +36,7 @@ export function fail(code: IngestionErrorCode, filename: string, context: Omit<I
 
 export function ingestionErrorMessage(error: IngestionFailure): string {
   switch (error.code) {
-    case "unsupported-file-type": return "Choose a JSON file or a ZIP containing JSON files.";
+    case "unsupported-file-type": return "Choose a DOCX, PDF with selectable text, JSON, or ZIP containing JSON files.";
     case "file-too-large": return "This file is larger than OpenStudy currently supports.";
     case "read-failure": return "This file could not be read. Please choose it again.";
     case "malformed-json": return `${error.entry ?? error.filename} is not valid UTF-8 JSON.`;
@@ -50,5 +53,12 @@ export function ingestionErrorMessage(error: IngestionFailure): string {
     case "no-json-files": return "This archive does not contain any JSON files.";
     case "no-record-collection": return `${error.entry ?? error.filename} contains no supported record collections. Use arrays of objects.`;
     case "inspection-failure": return "This source could not be inspected as structured records.";
+    case "corrupt-docx": return "This DOCX file could not be read. It may be damaged or use an unsupported document structure.";
+    case "corrupt-pdf": return "This PDF file could not be read. It may be damaged.";
+    case "no-extractable-text": return "We couldn't find enough selectable text in this PDF. Scanned PDFs aren't supported yet.";
+    case "unsupported-encrypted-pdf": return "This PDF is password-protected or encrypted and can't be opened here.";
+    case "document-resource-limit": return "This document is too large or complex to extract safely. Try a smaller document.";
+    case "unsupported-document-content": return "This DOCX contains macros or unsupported active content. Save it as a regular DOCX without macros.";
+    case "document-browser-unsupported": return "This browser cannot extract this document. Try a recent browser.";
   }
 }

@@ -1,7 +1,7 @@
 # `@openstudy/import-core`
 
 Framework-independent, browser/Node-compatible contracts and inspection for
-already-normalized structured source data. No runtime dependencies or coupling
+already-normalized structured source data and extracted document blocks. No runtime dependencies or coupling
 to `@openstudy/schema`, React, storage, or file APIs.
 
 ## Public API
@@ -17,10 +17,36 @@ to `@openstudy/schema`, React, storage, or file APIs.
 | `inspectMappingCandidate(input)` | Validate a neutral candidate and return detached inspection summaries |
 | `ImportInspection`, `CollectionInspection`, `FieldInspection`, `FieldSample` | Collection counts, field presence/types, and original sample values |
 | `ImportResult<T>`, `ImportFailure`, `ImportPath` | Discriminated expected failures with machine-readable context |
+| `SourceDocument`, `ExtractedDocument`, `NormalizedDocument` | Source metadata, original extraction, detached normalized content |
+| `DocumentBlock`, `DocumentRun`, `TextBlock`, `TableBlock`, `TableCell`, `PageTextBlock` | Ordered neutral blocks, formatting, cells and page items |
+| `DocumentWarning`, `DocumentSummary` | Extraction caveats and source-structure counts |
+| `normalizeDocument(extracted)`, `summarizeDocument(document)` | Pure line-ending normalization and source-role/page counts |
 
 The type names are package contracts, not alternate canonical entities. A
 mapping candidate is **source data ready to be mapped**, not a StudySet candidate.
-Raw bytes and future document block models deliberately have no types here.
+Raw File/Blob/bytes and browser/parser objects deliberately have no types here.
+
+## Document boundary
+
+`SourceDocument` is a serializable ingestion descriptor (SourceDescriptor, format,
+byte length), not a file, extracted content, canonical Source or StudySet.
+`ExtractedDocument` retains original ordered blocks, media presence (`true`,
+`false` or `unknown`), and machine-readable warnings. `NormalizedDocument` is a
+detached copy changing only CRLF/CR to LF. Wording, spaces, run marks, order,
+tables, coordinates and locators are retained. The web result keeps the original
+extracted representation separately; no destructive minification.
+
+Text blocks contain runs and optional heading/style/list metadata. Tables contain
+ordered rows/cells, nested blocks, column spans and vertical-merge signals.
+Page-text blocks contain 1-based pages, dimensions and ordered items with
+coordinates/direction/line breaks. Unsupported blocks may have placeholders.
+Temporary keys/locators reference content within the same ingestion result;
+no canonical identity is generated.
+
+Normalization accepts valid resource-bounded extractor output, not arbitrary
+unknown data or file bytes. Readonly types are not runtime freezing. Safety and
+parser budgets belong upstream. No automatic document-to-record adapter,
+question inference, mapping or generation is implemented.
 
 ## Adapter contract
 
@@ -103,8 +129,8 @@ Local web JSON/ZIP ingestion delivers normalized structured values to this adapt
 Each JSON input/ZIP entry can have its own source descriptor and candidate.
 Mapping will later turn a reviewed collection into a canonical candidate, with
 explicit identity/provenance decisions and validation by `@openstudy/schema`.
-DOCX/PDF extraction can retain a separate document model and project suitable
-tables/records here without changing StudySet or study logic. See
+Local DOCX/PDF extraction supplies the separate document model. Future reviewed
+mapping may project tables/records without changing StudySet or study logic. See
 [the import pipeline](../../docs/import-pipeline.md) for ownership and future flows.
 
 From the repository root, existing workspace commands include this package:
@@ -118,5 +144,5 @@ npm run verify
 
 The production TypeScript build uses only `ES2022` libraries and no ambient
 Node/browser types. Tests use the repository's existing Node test runner/`tsx`
-toolchain and synthetic in-memory data. No ingestion, mapping, persistence,
+toolchain and synthetic in-memory data. No file ingestion, mapping, persistence,
 canonical construction, study behavior, or AI functionality is implemented.

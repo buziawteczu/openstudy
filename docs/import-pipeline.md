@@ -402,8 +402,13 @@ Preserved from the main body:
 - Media presence/inline markers without reading or rendering images. Unsupported
   blocks have placeholders; unsupported inline features warn.
 
-Require normal `word/document.xml` and its regular DOCX content type. Transitional
-and strict Word namespaces are supported; unconventional main-part paths are not.
+Require normal `word/document.xml` and the regular DOCX main-part content type,
+`application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml`.
+Both Transitional and Strict DOCX use this content type; Strict changes the Word
+and relationship namespaces, not the main-part MIME type. Both Word namespaces
+are supported; unconventional main-part paths are not. This matches the
+[Open XML SDK's document type mapping](https://github.com/dotnet/Open-XML-SDK/blob/main/src/DocumentFormat.OpenXml/Packaging/WordprocessingDocument.cs)
+and its [Strict DOCX fixture](https://github.com/dotnet/Open-XML-SDK/blob/main/test/DocumentFormat.OpenXml.Tests.Assets/assets/TestFiles/Strict01.docx).
 XML is UTF-8 or BOM-marked UTF-16. Headers, footers, footnotes, endnotes and comments
 are omitted, with warnings when present. Unknown features, fields, drawings and
 complex revision/layout content require comparison with the original. The UI

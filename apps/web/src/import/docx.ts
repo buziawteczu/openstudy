@@ -53,6 +53,7 @@ export async function extractDocx(bytes: Uint8Array, sourceDocument: SourceDocum
   const contentTypes = parseXml(archive.parts.get("[Content_Types].xml")!, filename, limits, budget);
   const types = Array.from(contentTypes.documentElement.children);
   if (types.some((part) => /macroEnabled|vbaProject/i.test(part.getAttribute("ContentType") ?? ""))) fail("unsupported-document-content", filename);
+  // Strict and Transitional DOCX share this main-part type; their XML namespaces differ.
   if (!types.some((part) => part.getAttribute("PartName") === "/word/document.xml" && part.getAttribute("ContentType") === "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml")) fail("corrupt-docx", filename);
   const xml = parseXml(archive.parts.get("word/document.xml")!, filename, limits, budget);
   if (!isWord(xml.documentElement, "document")) fail("corrupt-docx", filename);

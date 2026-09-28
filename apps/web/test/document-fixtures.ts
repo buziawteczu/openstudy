@@ -8,16 +8,19 @@ export const sampleDocxBody = `
 <w:p><w:r><w:t xml:space="preserve">Which signal means stop? </w:t></w:r><w:r><w:rPr><w:b/><w:i/><w:u w:val="single"/></w:rPr><w:t>Red</w:t></w:r><w:r><w:tab/><w:br/><w:t>A. Green</w:t></w:r></w:p>
 <w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr><w:r><w:t>B. Red</w:t></w:r></w:p>
 <w:tbl><w:tr><w:tc>${paragraphXml("Code")}</w:tc><w:tc>${paragraphXml("Meaning")}</w:tc></w:tr><w:tr><w:tc>${paragraphXml("R")}</w:tc><w:tc>${paragraphXml("Stop")}</w:tc></w:tr></w:tbl>`;
-const contentTypes = `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`;
+const mainContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
 const styles = `<w:styles xmlns:w="${WORD_NS}"><w:style w:type="paragraph" w:styleId="Base"><w:rPr><w:b/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:basedOn w:val="Base"/><w:pPr><w:outlineLvl w:val="0"/></w:pPr></w:style></w:styles>`;
 
 /** Tiny owned OOXML fixtures, generated in memory with fixed ZIP timestamps. */
-export async function docxFixture(body = sampleDocxBody, extra: readonly (readonly [string, string | Uint8Array])[] = [], compressed = false, styleXml = styles): Promise<Uint8Array<ArrayBuffer>> {
+export async function docxFixture(body = sampleDocxBody, extra: readonly (readonly [string, string | Uint8Array])[] = [], compressed = false, styleXml = styles, options: { strict?: boolean; mainContentType?: string } = {}): Promise<Uint8Array<ArrayBuffer>> {
+  const wordNamespace = options.strict ? "http://purl.oclc.org/ooxml/wordprocessingml/main" : WORD_NS;
+  const relationshipNamespace = options.strict ? "http://purl.oclc.org/ooxml/officeDocument/relationships" : "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+  const contentTypes = `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="${options.mainContentType ?? mainContentType}"/></Types>`;
   return zipFixture([
     ["[Content_Types].xml", contentTypes],
-    ["_rels/.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
-    ["word/document.xml", `<w:document xmlns:w="${WORD_NS}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}</w:body></w:document>`],
-    ["word/styles.xml", styleXml],
+    ["_rels/.rels", `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${relationshipNamespace}/officeDocument" Target="word/document.xml"/></Relationships>`],
+    ["word/document.xml", `<w:document xmlns:w="${wordNamespace}" xmlns:r="${relationshipNamespace}"${options.strict ? ' w:conformance="strict"' : ""}><w:body>${body}</w:body></w:document>`],
+    ["word/styles.xml", styleXml.replaceAll(WORD_NS, wordNamespace)],
     ...extra,
   ], compressed);
 }

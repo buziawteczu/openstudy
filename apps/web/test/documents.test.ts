@@ -48,6 +48,26 @@ describe("local DOCX extraction", () => {
       { text: "Which signal means stop? " }, { text: "Red", bold: true, italic: true, underline: true }, { text: "\t\nA. Green" },
     ] });
   });
+  it.each([false, true])("accepts Strict OOXML with the regular DOCX main-part content type (compressed=%s)", async (compressed) => {
+    const transitional = await documentResult(await docxFixture(undefined, [], compressed), "exam.docx");
+    const strict = await documentResult(await docxFixture(undefined, [], compressed, undefined, { strict: true }), "exam.docx");
+    expect(strict.extracted.blocks).toEqual(transitional.extracted.blocks);
+    expect(strict.document.blocks).toEqual(transitional.document.blocks);
+    expect(strict.document.warnings).toEqual(transitional.document.warnings);
+    expect(strict.counts).toEqual(transitional.counts);
+  });
+  it.each([
+    "application/vnd.ms-word.document.main+xml",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml",
+    "application/xml",
+  ])("rejects an unsupported main-part content type even with Strict namespaces: %s", async (mainContentType) => {
+    await expectCode(await docxFixture(undefined, [], false, undefined, { strict: true, mainContentType }), "invalid.docx", "corrupt-docx");
+  });
+  it("rejects a macro-enabled main-part content type even with Strict namespaces", async () => {
+    await expectCode(await docxFixture(undefined, [], false, undefined, {
+      strict: true, mainContentType: "application/vnd.ms-word.document.macroEnabled.main+xml",
+    }), "macro.docx", "unsupported-document-content");
+  });
   it("retains merged-cell metadata and nested tables", async () => {
     const body = `<w:tbl><w:tr><w:tc><w:tcPr><w:gridSpan w:val="2"/><w:vMerge w:val="restart"/></w:tcPr>${paragraphXml("Cell")}<w:tbl><w:tr><w:tc>${paragraphXml("Nested")}</w:tc></w:tr></w:tbl></w:tc></w:tr><w:tr><w:tc><w:tcPr><w:vMerge/></w:tcPr>${paragraphXml("")}</w:tc></w:tr></w:tbl>`;
     const result = await documentResult(await docxFixture(body), "table.docx");

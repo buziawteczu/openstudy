@@ -20,7 +20,7 @@ describe("local JSON ingestion", () => {
   it("preserves fields and nested values in a root record array", async () => {
     const result = await ingestFile(file(fixture));
     expect(result.success).toBe(true);
-    if (!result.success) return;
+    if (!result.success || result.value.kind !== "structured") return;
     expect(result.value).toMatchObject({ collectionCount: 1, recordCount: 2 });
     expect(result.value.sources[0]!.candidate.collections[0]!.records).toEqual(JSON.parse(fixture));
     expect(result.value.sources[0]!.inspection.collections[0]!.fields.map((field) => field.name)).toContain("correctIndex");
@@ -65,12 +65,12 @@ describe("local JSON ingestion", () => {
     const first = await ingestFile(file(fixture));
     const second = await ingestFile(file(fixture));
     expect(first).toEqual(second);
-    if (first.success && second.success) expect(first.value.sources[0]!.candidate).not.toBe(second.value.sources[0]!.candidate);
+    if (first.success && second.success && first.value.kind === "structured" && second.value.kind === "structured") expect(first.value.sources[0]!.candidate).not.toBe(second.value.sources[0]!.candidate);
   });
   it("supports harmless prototype-like field names", async () => {
     const result = await ingestFile(file('[{"__proto__":{"a":1},"constructor":"data"}]'));
     expect(result.success).toBe(true);
-    if (result.success) expect(Object.hasOwn(result.value.sources[0]!.candidate.collections[0]!.records[0]!, "__proto__")).toBe(true);
+    if (result.success && result.value.kind === "structured") expect(Object.hasOwn(result.value.sources[0]!.candidate.collections[0]!.records[0]!, "__proto__")).toBe(true);
   });
   it("represents empty collections honestly", async () => {
     expect(await ingestFile(file("[]"))).toMatchObject({ success: true, value: { collectionCount: 1, recordCount: 0 } });
@@ -90,7 +90,7 @@ describe("bounded ZIP ingestion", () => {
   it("accepts one JSON entry with source identity", async () => {
     const result = await ingestFile(await zipFile([["folder/source.json", fixture]], true));
     expect(result).toMatchObject({ success: true, value: { collectionCount: 1, recordCount: 2 } });
-    if (result.success) expect(result.value.sources[0]!.candidate.source.originalFilename).toBe("folder/source.json");
+    if (result.success && result.value.kind === "structured") expect(result.value.sources[0]!.candidate.source.originalFilename).toBe("folder/source.json");
   });
   it("accepts multiple JSON entries, ignores directories and harmless non-JSON", async () => {
     const input = await zipFile([["folder/", ""], ["folder/a.json", fixture], ["b.JSON", '[{"other":true}]'], ["readme.txt", "Hello"]]);
@@ -119,7 +119,7 @@ describe("bounded ZIP ingestion", () => {
   it("normalizes backslashes and harmless dot segments", async () => {
     const result = await ingestFile(await zipFile([["folder\\./a.json", fixture]]));
     expect(result.success).toBe(true);
-    if (result.success) expect(result.value.sources[0]!.candidate.source.originalFilename).toBe("folder/a.json");
+    if (result.success && result.value.kind === "structured") expect(result.value.sources[0]!.candidate.source.originalFilename).toBe("folder/a.json");
   });
   it.each(["../a.json", "../../a.json", "/absolute/a.json", "C:\\folder\\a.json", "\\\\server\\a.json", "a\u0000.json"])("rejects unsafe path %s", async (path) => {
     await expectCode(await zipFile([[path, fixture]]), "unsafe-archive-path");
@@ -234,6 +234,6 @@ describe("bounded ZIP ingestion", () => {
     bytes.set(first, directory + secondLength);
     const result = await ingestFile(new File([bytes], "unsorted.zip"));
     expect(result.success).toBe(true);
-    if (result.success) expect(result.value.sources.map((source) => source.candidate.source.originalFilename)).toEqual(["b.json", "a.json"]);
+    if (result.success && result.value.kind === "structured") expect(result.value.sources.map((source) => source.candidate.source.originalFilename)).toEqual(["b.json", "a.json"]);
   });
 });

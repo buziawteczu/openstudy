@@ -48,8 +48,8 @@ describe("OpenStudy application shell", () => {
   it("renders a direct Import visit with a labeled local file picker", () => {
     renderApp("/import");
     expect(screen.getByRole("heading", { level: 1, name: "Import study material" })).toBeInTheDocument();
-    expect(screen.getByText(/Choose a JSON file or ZIP containing JSON files/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Study material file")).toHaveAttribute("accept", ".json,.zip");
+    expect(screen.getByText(/Choose a DOCX, PDF with selectable text, JSON, or ZIP/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Study material file")).toHaveAttribute("accept", ".docx,.pdf,.json,.zip");
     expect(screen.getByText("Files are processed on this device.")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });

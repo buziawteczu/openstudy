@@ -25,8 +25,8 @@ Changing progress must not mutate canonical questions. Generating a learning pla
 | StudySet | Canonical, portable collection of study content | V1 |
 | Question | Typed study interaction content within a StudySet | V1; single-choice only |
 | Source | Identity and metadata for material that contributed content | V1 minimum |
-| SourceDocument | Original binary or source container before extraction | Future; JSON source metadata may use a lighter representation in V1 |
-| NormalizedDocument | Extracted paragraphs, tables, pages, images, and structure | Future |
+| SourceDocument | Metadata describing an original document-oriented source | DOCX/text-PDF ingestion descriptor; not retained binary bytes |
+| NormalizedDocument | Extracted paragraphs, tables, pages and formatting | DOCX/text-PDF neutral blocks; not canonical study content |
 | StudySetRevision | A committed content state or change boundary | V1 concept; retention mechanics open |
 | UserProgress | Learner state keyed by stable content identity | V1 |
 | LearningPlan | Optional goals, sequencing, or schedule over existing content | Future |
@@ -129,9 +129,13 @@ Question provenance is an optional array so one question can cite multiple sourc
 
 ## SourceDocument
 
-`SourceDocument` represents an original binary or document-oriented input, such as DOCX or PDF, before extraction. It may own bytes or a reference to bytes plus basic metadata.
+`SourceDocument` describes an original document-oriented input, such as DOCX or PDF,
+before extraction. The implemented import-core contract holds only an import-local
+source descriptor, format and byte count; File/Blob and bytes stay in the web layer.
 
-It is a future concept because V1 accepts JSON and ZIP of JSON, not general document parsing. Whether original source bytes should be retained after a successful import is unresolved and has privacy, storage, reprocessing, and portability consequences.
+Local extraction now supports DOCX and text-based PDF as well as structured JSON/ZIP.
+Raw document bytes are not retained in successful ingestion data or persisted.
+Future retention remains unresolved and has privacy/reprocessing/portability costs.
 
 ## NormalizedDocument
 

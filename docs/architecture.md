@@ -95,7 +95,7 @@ canonical StudySet candidate
 
 ## Canonical boundary
 
-All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. See [the import pipeline](import-pipeline.md) for implemented contracts and deferred mapping work.
+All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. `@openstudy/mapping` (in `packages/structured-mapping`) consumes those neutral structured records and the canonical schema: pure explicit transformation, record validation, and whole-StudySet validation. React only coordinates its APIs. The implemented flow stops at an all-valid candidate in memory, not persistence. See [the import pipeline](import-pipeline.md) for structured mapping and deferred document question review.
 
 The canonical model makes the question type explicit. V1 implements only single-choice behavior. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 
@@ -169,7 +169,7 @@ Confidential or private sharing would require a separate threat model covering a
 The architecture needs seams for the following without implementing registries now:
 
 - **Structured source adapters:** normalized structured inputs to neutral record collections ready for later mapping.
-- **Mapping:** reviewed source fields to canonical candidates; no mapping implementation exists yet.
+- **Mapping:** `@openstudy/mapping` transforms explicit structured field paths into all-valid canonical candidates; document question extraction/review remains a separate future boundary.
 - **Document extractors:** binary sources to `NormalizedDocument`.
 - **Question generators:** normalized content to reviewable candidates; deterministic/manual operation must remain possible.
 - **Schema migrations:** explicit version-to-version transforms.
@@ -209,7 +209,7 @@ PR 1 resolves the first serialized boundary without implementing its consumers:
 
 These are intentionally unresolved in PR 0:
 
-1. **ID generation and trust:** which generator creates portable internal IDs and when, if ever, imported canonical IDs are trusted or replaced.
+1. **ID generation and trust:** new structured imports now use a browser CSPRNG 128-bit namespace plus portable entity/record/choice suffixes, independent of mutable text or imported IDs. The namespace is stable only within that import session. Trust and identity preservation for canonical re-import/update remain unresolved.
 2. **Revision history:** when revision numbers increment, how snapshots are retained, and how rollback affects later progress.
 3. **Richer provenance:** whether future document locators need a structured extension beyond the V1 opaque locator.
 4. **SourceDocument retention:** disposable after import, retained by user choice, or retained by default.

@@ -1,9 +1,11 @@
 # OpenStudy
 
 A local-first, mobile-friendly study tool. The current application foundation
-contains an empty StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion, and a not-found page.
-Ingestion stops at neutral document extraction or collection inspection; mapping, canonical import,
-persistence, and study modes are not implemented yet. See the
+contains an empty StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
+explicit structured mapping/validation, and a not-found page.
+JSON/ZIP mapping stops at an all-valid canonical candidate in memory; DOCX/PDF
+stop at neutral extraction. Persistence, document question review, and study
+modes are not implemented yet. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
 ## Repository
@@ -11,6 +13,7 @@ persistence, and study modes are not implemented yet. See the
 - `apps/web`: React/TypeScript/Vite/Tailwind CSS frontend, component tests, and Playwright smoke tests.
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
 - `packages/import-core`: neutral structured/document contracts, record-array discovery, document normalization, and inspection; no file APIs or canonical mapping.
+- `packages/structured-mapping`: `@openstudy/mapping`, pure explicit field mapping, preview, issues, and canonical candidate validation.
 - `docs`: product and architecture contracts.
 
 ## Development
@@ -34,7 +37,7 @@ npm run build
 npm run verify
 ```
 
-These commands cover all workspaces. `verify` runs typecheck, schema, import-core,
+These commands cover all workspaces. `verify` runs typecheck, schema, import-core, mapping,
 and frontend tests, all builds, and JSON Schema freshness checking.
 `npm run check:json-schema` and `npm run generate:json-schema` still target the
 schema package.
@@ -48,7 +51,8 @@ npm run test:e2e
 ```
 
 The suite starts and stops its own preview server on port 4173. It checks
-navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion, reset/errors,
+navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion,
+structured mapping/validation/issue inspection, reset/errors,
 200% text scaling, and layout at widths
 320, 375, 390, 768, 1440, and 1920px. Local visual captures and failure traces are written to
 the ignored `apps/web/test-results/` directory.
@@ -66,6 +70,11 @@ and pushes to `main`. No deployment is configured.
 Pages share a centered canvas with a `45rem` maximum width (about 720px at the
 default font size), fluid gutters, and a single column. Desktop space provides
 breathing room; the canvas has no device frame.
+
+Only an active structured mapping workflow widens the canvas to `78rem` (about
+1248px). Source, mapping controls, and preview form a desktop workspace above
+`68rem`; narrower screens use an ordered vertical flow. The Library and document
+extraction retain the focused shell.
 
 Tailwind CSS v4 is integrated through the official Vite plugin. Its CSS-first
 `@theme` in `apps/web/src/styles/global.css` defines semantic colors, typography,

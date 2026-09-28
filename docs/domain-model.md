@@ -101,6 +101,15 @@ Recommended initial approach:
 
 PR 1 defines the portable representation without selecting a generator. Internal IDs are 1-128 ASCII characters, start with a letter or digit, and otherwise contain only letters, digits, `.`, `_`, `:`, or `-`. This admits UUIDs, ULIDs, and prefixed IDs while rejecting whitespace, paths, and blank values. The schema validates but never generates IDs.
 
+Structured mapping now creates new candidate identity with a browser-generated
+128-bit cryptographic namespace and portable entity/record/choice suffixes.
+The opaque namespace makes record indexes insufficient as identity on their own;
+IDs are stable within the candidate, independent of question text or provenance
+external IDs. Exact category labels share a generated first-occurrence registry
+ID, not a text-derived identity. Separate imports intentionally get new IDs.
+This resolves new-content generation only: preservation and trust across future
+Add Material, re-import, and update/merge workflows remain separate decisions.
+
 ### When a question changes
 
 Not every edit should have the same effect:
@@ -218,7 +227,7 @@ Cardinality is conceptual. In particular, the provenance relation may be simplif
 
 ## Open questions
 
-- Which generator should create portable internal IDs, and can importers ever propose trusted canonical IDs?
+- New structured candidates use session-scoped opaque IDs; can future canonical re-import/update workflows ever propose trusted existing IDs?
 - What exact changes retain question identity and progress?
 - How should revision snapshots and rollback be stored around the positive revision number?
 - When does a content operation increment revision, including no-op imports and metadata-only edits?

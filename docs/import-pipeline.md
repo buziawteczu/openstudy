@@ -5,22 +5,25 @@
 The import pipeline converts untrusted external material into a validated canonical StudySet candidate. It is separate from persistence and study behavior.
 
 The implemented local inputs are JSON, ZIP containing JSON, DOCX, and PDF with
-selectable text. They stop at neutral inspection/extraction. Mapping, canonical
-candidate creation, persistence, and generation remain future work.
+selectable text. JSON/ZIP record collections now support explicit mapping and
+complete canonical validation into an in-memory StudySet candidate. DOCX/PDF
+stop at neutral extraction. Persistence, study, and document question review
+remain future work.
 
 ## Implemented neutral boundary (`@openstudy/import-core`)
 
 Conceptual PR 4 established contracts and inspection. Conceptual PR 5 adds
 local JSON/ZIP ingestion at `/import` and a format-neutral record-array adapter.
 Conceptual PR 6 adds document contracts, DOCX extraction, and text-PDF extraction.
-Both flows stop before mapping; documents are not StudySets or record arrays.
+Conceptual PR 7 adds structured mapping in `@openstudy/mapping`; import-core
+itself stays neutral. Documents are not StudySets or structured record arrays.
 
 | Stage | Representation and owner |
 | --- | --- |
 | Raw source | User file/binary/archive; ingestion/extraction owns reading and safety. No raw-file API in import-core. |
 | Normalized structured source | `NormalizedStructuredSource`: upstream `SourceDescriptor` plus nested serializable `SourceValue`; already read/extracted, not canonical content. |
 | Mapping candidate | `MappingCandidate`: source descriptor, adapter ID, and explicit `RecordCollection[]`; source field names/values remain opaque data. |
-| Canonical candidate / StudySet | Later mapping and identity decisions produce a canonical candidate; schema validation/migration gates persistence and study. |
+| Canonical candidate / StudySet | `@openstudy/mapping` explicitly transforms the chosen structured collection and calls canonical validation; only an all-valid candidate exists in memory. Persistence and study remain deferred. |
 
 The structured path is therefore:
 
@@ -75,7 +78,9 @@ DOCX/PDF extraction retains `SourceDocument`, `ExtractedDocument`, and
 tables into the structured boundary; paragraphs/pages are not forced into record
 arrays. Study continues to consume validated canonical data only.
 
-See [the package README](../packages/import-core/README.md) for the public API.
+See [the import-core README](../packages/import-core/README.md) and
+[the structured-mapping README](../packages/structured-mapping/README.md) for
+the public contracts.
 
 ## V1 structured import
 
@@ -104,8 +109,70 @@ Idle, reading, success, and error states use a labeled native picker, a polite
 status region, and error alerts. Cancel/reset aborts ongoing reads/extraction;
 reset clears the input and restores focus so the same file can be selected again.
 Success says **Ready for mapping**, with file/collection/record counts and no
-Continue button. Nothing is added to the Library. Any invalid JSON entry fails
+Continue button. Structured mapping follows below in the same `/import` session.
+Nothing is added to the Library. Any invalid JSON entry fails
 the entire attempt rather than silently returning a partial import.
+
+### Implemented structured mapping and candidate boundary
+
+```text
+JSON/ZIP inspection -> explicit collection selection -> manual field mapping
+  -> explicit answer interpretation -> first-three-record preview
+  -> Validate all records -> contextual issues OR all-valid canonical candidate
+  -> STOP (in memory; no save, Library entry, persistence, or study)
+```
+
+Ambiguous collections have no default selection; a sole collection may be
+preselected. Unrelated collections/ZIP entries are never merged. Required
+targets are Question, Answers, and Correct answer; optional targets are topic/
+category, explanation, and source record ID. Title is editable (filename default),
+description optional, and a new candidate uses revision `1`.
+
+`MappingDefinition` contains `collectionKey`, `promptPath`, `choicesPath`,
+`correctAnswer: { path, mode }`, and optional `categoryPath`, `explanationPath`,
+`externalIdPath`. Paths are object-key segment arrays, not expressions or array
+indexes. Nested objects and literal unusual keys are supported. Bounded discovery
+lists at most 200 paths/100 levels, with an explicit truncation notice and three
+source samples; it does not flatten or change the records.
+
+Correct-answer mode must be explicitly selected: zero-based safe integer,
+one-based safe integer, or exact choice text. No names decide semantics. Text
+matching preserves case/whitespace and rejects multiple matching labels.
+V1 choices are non-blank string arrays; heterogeneous/structured choices and
+source-choice-value/ID matching are unsupported. Prompts are non-blank strings,
+not coerced objects/numbers. Optional mapped values may be missing per record;
+present blank/null/non-text values fail rather than being silently omitted.
+
+The web session generates a cryptographic 128-bit opaque namespace per selected
+collection; pure transformation adds entity/record/choice suffixes. No question
+text or external record ID becomes canonical identity. Exact category labels
+form a deterministic first-occurrence registry with generated IDs. Questions
+reference one canonical Source for the selected JSON/ZIP entry, preserve its
+filename, and carry a collection/record locator plus optional provenance
+external ID. Identity preservation on re-import is future lifecycle work.
+
+The live preview attempts only the first three records. Full validation runs
+only on an explicit action, uses `QuestionSchema` for each mapped question,
+and then calls `StudySetSchema` for the complete candidate. Issues retain source
+record index, target, code, and concise copy. Valid/invalid record counts are
+distinct from issue-message counts; navigation renders ten messages at a time
+and retrieves original mapped values plus a transformed preview on demand.
+All selected records must pass: no partial candidate or "import valid anyway".
+Unexpected whole-candidate schema failures are structured errors.
+
+React coordinates the flow but owns no answer-resolution/schema rules. State
+stays scoped under `/import`; mapping/metadata changes invalidate prior
+validation, and collection/file reset or navigation/reload loses the session.
+Only the structured workflow widens the app shell to `78rem` (about 1248px);
+desktop source/mapping/preview columns collapse into an ordered vertical flow
+below `68rem`. Labels, native controls, a radio fieldset, linked errors,
+polite final summary, deliberate summary/inspection focus, and visible focus
+support keyboard operation. Live preview never moves focus.
+
+DOCX/PDF never show this mapper. Their summary says question extraction and
+review for documents will be added next. No document question extraction,
+automatic/AI mapping, fuzzy matching, question deduplication, saved presets,
+local storage, or study modes are implemented.
 
 ### Structured runtime dependency and browser baseline
 
@@ -118,6 +185,8 @@ DEFLATE requires a modern browser with native `DecompressionStream("deflate-raw"
 unsupported browsers receive a typed error and can still select plain JSON.
 There is no downloaded fallback. See the [ZIP reader documentation](https://gildas-lormeau.github.io/zip.js/api/classes/ZipReader.html)
 and [integrity/stream options](https://gildas-lormeau.github.io/zip.js/api/interfaces/EntryGetDataOptions.html).
+
+The longer-term lifecycle below continues beyond the current in-memory stop:
 
 ```text
 select file
@@ -177,7 +246,9 @@ Mapping translates source fields and shapes into canonical candidate fields. For
 
 Mapping must handle structural decisions such as nested fields and answer references, not only rename keys. Users should see sample source values beside their canonical preview.
 
-Suggested mappings may be deterministic or, later, AI-assisted. Ambiguous mappings are never silently finalized. The user confirms a mapping before import.
+The implemented V1 requires manual field choices and explicit answer semantics.
+There are no automatic or AI suggestions. Optional assistants remain a separate
+future capability; ambiguous mappings must never be silently finalized.
 
 ### 4. Canonical candidate creation
 
@@ -206,11 +277,16 @@ the UI should be able to summarize:
 
 The underlying location still matters for diagnostics and navigation. It should not be the only explanation.
 
-Partial import of valid records may be useful, but the confirmation, provenance, and retry semantics are unresolved. No invalid record should be silently dropped.
+Current structured mapping requires all selected records to be valid. Partial
+imports may be useful later, but confirmation, provenance, and retry semantics
+remain unresolved. No invalid record is silently dropped.
 
 ### 6. Commit
 
-Persistence happens only after explicit confirmation. The commit creates a new StudySet or an explicit StudySet revision. Import previews and validation failures must not partially mutate durable content or progress.
+This stage is not implemented. Future persistence happens only after explicit
+confirmation and creates a new StudySet or an explicit StudySet revision.
+Import previews and validation failures must not partially mutate durable
+content or progress.
 
 ## ZIP safety
 

@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@openstudy/import-core": "0.1.0",
+    "@openstudy/mapping": "0.1.0",
     "@zip.js/zip.js": "^2.18.2",
     "pdfjs-dist": "6.3.289",
     "react": "^19.3.0",

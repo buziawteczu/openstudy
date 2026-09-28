@@ -4,12 +4,15 @@ import type { IngestionLimits } from "./limits.js";
 import { readDocxPackage } from "./docx-package.js";
 
 const WORD_NAMESPACES = new Set(["http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main"]);
+const CONTENT_TYPES_NAMESPACE = "http://schemas.openxmlformats.org/package/2006/content-types";
+const RELATIONSHIPS_NAMESPACE = "http://schemas.openxmlformats.org/package/2006/relationships";
+const OMITTED_PART_TYPES = new Set(["http://schemas.openxmlformats.org/officeDocument/2006/relationships", "http://purl.oclc.org/ooxml/officeDocument/relationships"].flatMap((namespace) => ["header", "footer", "footnotes", "endnotes", "comments"].map((role) => `${namespace}/${role}`)));
 const isWord = (element: Element, name: string) => WORD_NAMESPACES.has(element.namespaceURI ?? "") && element.localName === name;
 const children = (element: Element | undefined, name: string): Element[] => element ? Array.from(element.children).filter((child) => isWord(child, name)) : [];
 const child = (element: Element | undefined, name: string) => children(element, name)[0];
 const value = (element: Element | undefined, name = "val") => element ? Array.from(element.attributes).find((attribute) => WORD_NAMESPACES.has(attribute.namespaceURI ?? "") && attribute.localName === name)?.value : undefined;
 
-/** Read only XML data: no HTML rendering, DTDs, entities or relationship loading. */
+/** Read only XML data: no HTML rendering, DTDs, entities or relationship target loading. */
 function parseXml(bytes: Uint8Array, filename: string, limits: IngestionLimits, budget: { nodes: number }): Document {
   let text: string;
   try {
@@ -51,27 +54,46 @@ export async function extractDocx(bytes: Uint8Array, sourceDocument: SourceDocum
   signal.throwIfAborted();
   const budget = { nodes: 0 };
   const contentTypes = parseXml(archive.parts.get("[Content_Types].xml")!, filename, limits, budget);
+  if (contentTypes.documentElement.namespaceURI !== CONTENT_TYPES_NAMESPACE || contentTypes.documentElement.localName !== "Types") fail("corrupt-docx", filename);
   const types = Array.from(contentTypes.documentElement.children);
   if (types.some((part) => /macroEnabled|vbaProject/i.test(part.getAttribute("ContentType") ?? ""))) fail("unsupported-document-content", filename);
+  const declarations = types.filter((part) => part.namespaceURI === CONTENT_TYPES_NAMESPACE);
+  const overrides = declarations.filter((part) => part.localName === "Override" && part.getAttribute("PartName")?.toLowerCase() === "/word/document.xml");
+  const defaultsForXml = declarations.filter((part) => part.localName === "Default" && part.getAttribute("Extension")?.toLowerCase() === "xml");
+  if (overrides.length > 1 || defaultsForXml.length > 1) fail("corrupt-docx", filename);
+  // An Override wins even if invalid; never fall back to Default to bypass it.
+  const mainType = (overrides[0] ?? defaultsForXml[0])?.getAttribute("ContentType");
   // Strict and Transitional DOCX share this main-part type; their XML namespaces differ.
-  if (!types.some((part) => part.getAttribute("PartName") === "/word/document.xml" && part.getAttribute("ContentType") === "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml")) fail("corrupt-docx", filename);
+  if (mainType !== "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml") fail("corrupt-docx", filename);
   const xml = parseXml(archive.parts.get("word/document.xml")!, filename, limits, budget);
   if (!isWord(xml.documentElement, "document")) fail("corrupt-docx", filename);
   const body = child(xml.documentElement, "body");
   if (!body) fail("corrupt-docx", filename);
   const warnings = new Set<DocumentWarning>(["limited-docx-styles"]);
   if ([...archive.names].some((name) => /^word\/(header|footer|footnotes|endnotes|comments)/.test(name))) warnings.add("omitted-docx-parts");
+  const relationshipsBytes = archive.parts.get("word/_rels/document.xml.rels");
+  if (relationshipsBytes) {
+    const root = parseXml(relationshipsBytes, filename, limits, budget).documentElement;
+    if (root.namespaceURI !== RELATIONSHIPS_NAMESPACE || root.localName !== "Relationships") fail("corrupt-docx", filename);
+    // Inspect roles only. Targets are never resolved, parsed, fetched or executed.
+    if (Array.from(root.children).some((relationship) => relationship.namespaceURI === RELATIONSHIPS_NAMESPACE && relationship.localName === "Relationship" && (relationship.getAttribute("TargetMode") ?? "Internal") === "Internal" && OMITTED_PART_TYPES.has(relationship.getAttribute("Type") ?? ""))) warnings.add("omitted-docx-parts");
+  }
   let hasEmbeddedMedia = [...archive.names].some((name) => /^word\/(media|embeddings)\//.test(name));
   const styles = new Map<string, Element>();
   const stylesBytes = archive.parts.get("word/styles.xml");
   let defaults: Formatting = {};
+  let defaultParagraphStyle: string | undefined;
   if (stylesBytes) {
     const root = parseXml(stylesBytes, filename, limits, budget).documentElement;
     if (!isWord(root, "styles")) fail("corrupt-docx", filename);
     defaults = formatting(child(child(child(root, "docDefaults"), "rPrDefault"), "rPr"));
     for (const style of children(root, "style")) {
       const id = value(style, "styleId");
-      if (id) { if (styles.has(id)) fail("corrupt-docx", filename); styles.set(id, style); }
+      if (id) {
+        if (styles.has(id)) fail("corrupt-docx", filename);
+        styles.set(id, style);
+        if (value(style, "type") === "paragraph" && ["1", "true", "on"].includes(value(style, "default") ?? "")) defaultParagraphStyle = id;
+      }
     }
   }
   const styleCache = new Map<string, Element[]>();
@@ -104,7 +126,7 @@ export async function extractDocx(bytes: Uint8Array, sourceDocument: SourceDocum
 
   function paragraph(element: Element, locator: string): TextBlock {
     const properties = child(element, "pPr");
-    const style = value(child(properties, "pStyle"));
+    const style = value(child(properties, "pStyle")) ?? defaultParagraphStyle;
     const chain = styleChain(style);
     const propertyChain = [...chain.map((entry) => child(entry, "pPr")), properties];
     const inherited = Object.assign({}, defaults, ...chain.map((entry) => formatting(child(entry, "rPr")))) as Formatting;

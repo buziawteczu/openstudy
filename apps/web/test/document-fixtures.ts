@@ -12,12 +12,12 @@ const mainContentType = "application/vnd.openxmlformats-officedocument.wordproce
 const styles = `<w:styles xmlns:w="${WORD_NS}"><w:style w:type="paragraph" w:styleId="Base"><w:rPr><w:b/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:basedOn w:val="Base"/><w:pPr><w:outlineLvl w:val="0"/></w:pPr></w:style></w:styles>`;
 
 /** Tiny owned OOXML fixtures, generated in memory with fixed ZIP timestamps. */
-export async function docxFixture(body = sampleDocxBody, extra: readonly (readonly [string, string | Uint8Array])[] = [], compressed = false, styleXml = styles, options: { strict?: boolean; mainContentType?: string } = {}): Promise<Uint8Array<ArrayBuffer>> {
+export async function docxFixture(body = sampleDocxBody, extra: readonly (readonly [string, string | Uint8Array])[] = [], compressed = false, styleXml = styles, options: { strict?: boolean; mainContentType?: string; contentTypesXml?: string } = {}): Promise<Uint8Array<ArrayBuffer>> {
   const wordNamespace = options.strict ? "http://purl.oclc.org/ooxml/wordprocessingml/main" : WORD_NS;
   const relationshipNamespace = options.strict ? "http://purl.oclc.org/ooxml/officeDocument/relationships" : "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
   const contentTypes = `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="${options.mainContentType ?? mainContentType}"/></Types>`;
   return zipFixture([
-    ["[Content_Types].xml", contentTypes],
+    ["[Content_Types].xml", options.contentTypesXml ?? contentTypes],
     ["_rels/.rels", `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${relationshipNamespace}/officeDocument" Target="word/document.xml"/></Relationships>`],
     ["word/document.xml", `<w:document xmlns:w="${wordNamespace}" xmlns:r="${relationshipNamespace}"${options.strict ? ' w:conformance="strict"' : ""}><w:body>${body}</w:body></w:document>`],
     ["word/styles.xml", styleXml.replaceAll(WORD_NS, wordNamespace)],

@@ -101,7 +101,7 @@ describe("local DOCX extraction", () => {
     try {
       const bytes = await docxFixture('<w:p><w:hyperlink r:id="external"><w:r><w:t>External link text</w:t></w:r></w:hyperlink><w:r><w:drawing/></w:r></w:p><w:altChunk r:id="html"/>', [
         ["word/media/image.png", new Uint8Array([1, 2])], ["word/header1.xml", paragraphXml("Header")],
-        ["word/_rels/document.xml.rels", '<Relationships><Relationship Id="external" Target="https://example.invalid/remote.png" TargetMode="External"/></Relationships>'],
+        ["word/_rels/document.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="external" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="https://example.invalid/remote.png" TargetMode="External"/></Relationships>'],
       ]);
       const result = await documentResult(bytes, "linked.docx");
       expect(result.document.hasEmbeddedMedia).toBe(true);

@@ -16,7 +16,7 @@ export async function readDocxPackage(bytes: Uint8Array, filename: string, limit
   const names = new Set<string>();
   const entries: Entry[] = [];
   const parts = new Map<string, Uint8Array>();
-  const needed = new Set(["[Content_Types].xml", "word/document.xml", "word/styles.xml"]);
+  const needed = new Set(["[Content_Types].xml", "word/document.xml", "word/styles.xml", "word/_rels/document.xml.rels"]);
   let declared = 0;
   let total = 0;
   try {

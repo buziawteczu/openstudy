@@ -393,8 +393,11 @@ Preserved from the main body:
   labels, restarts and numbering definitions are **not** resolved. Literal labels
   remain text, not inferred answer choices.
 - Separate text runs, text/whitespace, tabs, breaks, direct bold/italic/underline,
-  simple inherited style flags and explicit formatting-off values. Complex style
-  toggles, theme/layout/font behavior are not fully reproduced.
+  simple inherited style flags and explicit formatting-off values. Paragraphs
+  without an explicit style use the declared default paragraph style and its
+  existing inheritance chain, including available outline/numbering properties.
+  Explicit paragraph styles and direct formatting still take precedence. Complex
+  style toggles, theme/layout/font behavior are not fully reproduced.
 - Tables as ordered rows/cells with nested blocks/tables, column spans and
   vertical-merge start/continuation metadata. No semantic table interpretation.
 - Hyperlink display text without following targets. Inline tracked changes retain
@@ -404,14 +407,21 @@ Preserved from the main body:
 
 Require normal `word/document.xml` and the regular DOCX main-part content type,
 `application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml`.
+Resolve its effective type from the matching OPC `Override` before the `Default`
+for its extension (case-insensitive). An invalid Override never falls back to a
+valid Default; ambiguous matching declarations are rejected.
 Both Transitional and Strict DOCX use this content type; Strict changes the Word
 and relationship namespaces, not the main-part MIME type. Both Word namespaces
 are supported; unconventional main-part paths are not. This matches the
 [Open XML SDK's document type mapping](https://github.com/dotnet/Open-XML-SDK/blob/main/src/DocumentFormat.OpenXml/Packaging/WordprocessingDocument.cs)
 and its [Strict DOCX fixture](https://github.com/dotnet/Open-XML-SDK/blob/main/test/DocumentFormat.OpenXml.Tests.Assets/assets/TestFiles/Strict01.docx).
 XML is UTF-8 or BOM-marked UTF-16. Headers, footers, footnotes, endnotes and comments
-are omitted, with warnings when present. Unknown features, fields, drawings and
-complex revision/layout content require comparison with the original. The UI
+are omitted, with warnings when present. Main-document internal relationship
+types identify these roles even with nonconventional target names, alongside the
+existing filename checks. Relationship XML shares the normal XML/node/depth
+budgets; targets are not followed and omitted parts are not parsed for content.
+Unknown features, fields, drawings and complex revision/layout content require
+comparison with the original. The UI
 disclaims full Word layout and surfaces media/omitted-content warnings.
 
 All entries, including discarded media, count toward budgets and undergo CRC and

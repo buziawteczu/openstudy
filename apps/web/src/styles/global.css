@@ -121,6 +121,47 @@
   --container-app: 78rem;
 }
 
+.app-shell:has(.document-review) { --container-app: 72rem; }
+
+@layer components {
+  .document-import { margin-top: 2.5rem; overflow-wrap: anywhere; }
+  .document-import label, .document-import legend { display: block; margin-top: 1rem; font-size: var(--text-small); }
+  .review-progress p { margin-top: 0.75rem; font-size: var(--text-small); }
+  .review-current { margin-top: 2rem; margin-bottom: 1rem; }
+  .review-current .eyebrow { color: var(--color-accent); margin-bottom: 0.5rem; }
+  .document-review-grid { display: grid; gap: 1.5rem; align-items: start; }
+  .document-review-grid > *, .document-editor fieldset { min-width: 0; }
+  .document-editor { background: var(--color-surface); padding: clamp(1rem, 2.5vw, 1.5rem); border-radius: var(--radius-small); border-top: 3px solid var(--color-accent); }
+  .document-editor > fieldset > label:first-of-type { margin-top: 0; font-weight: 600; font-size: 1rem; }
+  .document-original { min-width: 0; margin-top: 1rem; border-top: 1px solid var(--color-border); }
+  .document-original > summary, .review-secondary > summary, .review-evidence > summary {
+    min-height: 3rem; padding-block: 0.75rem; color: var(--color-accent); cursor: pointer; font-weight: 600;
+  }
+  .document-source-block { margin-block: 1rem; }
+  .document-source-block h3 { color: var(--color-muted); font-size: var(--text-small); }
+  .document-source-text { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: var(--text-small); margin-top: 0.5rem; }
+  .review-answers { margin-top: 1.25rem; }
+  .document-import .review-answers legend { font-weight: 600; font-size: 1rem; }
+  .review-answer-row { margin-top: 0.5rem; }
+  .review-prompt { font-size: 1.125rem; }
+  .review-link { display: inline-block; min-height: 3rem; padding: 0.65rem 0; margin-right: 1rem; max-width: 100%; color: var(--color-accent); text-align: left; text-decoration: underline; cursor: pointer; font-size: var(--text-small); }
+  .review-link:disabled, .review-navigation button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .review-check { display: flex !important; gap: 0.75rem; align-items: start; min-height: 3rem; padding-block: 0.5rem; cursor: pointer; }
+  .review-check input { flex-shrink: 0; width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; accent-color: var(--color-accent); }
+  .document-editor fieldset:disabled { opacity: 0.65; }
+  .review-secondary { margin-top: 1.25rem; }
+  .review-navigation { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; margin-top: 1rem; align-items: center; }
+  .review-navigation button { min-height: 3rem; padding: 0.65rem 0.75rem; max-width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-small); color: var(--color-accent); background: var(--color-surface); cursor: pointer; }
+  .review-ungrouped { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border); }
+  .review-ungrouped > h3 { font-weight: 600; }
+  .review-evidence { margin-top: 1rem; font-size: var(--text-small); }
+  .document-review .validation-step { max-width: 48rem; }
+  @media (min-width: 68rem) {
+    .document-review-grid { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 2.5rem; }
+    .document-review-grid > .document-original { margin-top: 0; }
+  }
+}
+
 @layer components {
   .ingestion-status {
     display: flex;

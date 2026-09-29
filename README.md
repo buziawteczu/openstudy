@@ -2,10 +2,11 @@
 
 A local-first, mobile-friendly study tool. The current application foundation
 contains an empty StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
-explicit structured mapping/validation, and a not-found page.
-JSON/ZIP mapping stops at an all-valid canonical candidate in memory; DOCX/PDF
-stop at neutral extraction. Persistence, document question review, and study
-modes are not implemented yet. See the
+explicit structured mapping/validation, document-question review, and a not-found page.
+JSON/ZIP field mapping and DOCX/text-PDF existing-question review stop at an
+all-valid canonical candidate in memory. Document notes stop at extracted content:
+creating questions from notes is not supported. Persistence and study modes
+are not implemented yet. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
 ## Repository
@@ -13,7 +14,7 @@ modes are not implemented yet. See the
 - `apps/web`: React/TypeScript/Vite/Tailwind CSS frontend, component tests, and Playwright smoke tests.
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
 - `packages/import-core`: neutral structured/document contracts, record-array discovery, document normalization, and inspection; no file APIs or canonical mapping.
-- `packages/structured-mapping`: `@openstudy/mapping`, pure explicit field mapping, preview, issues, and canonical candidate validation.
+- `packages/structured-mapping`: `@openstudy/mapping`, pure explicit field mapping, document-question grouping/review transformations, issues, and canonical candidate validation.
 - `docs`: product and architecture contracts.
 
 ## Development
@@ -52,15 +53,18 @@ npm run test:e2e
 
 The suite starts and stops its own preview server on port 4173. It checks
 navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion,
-structured mapping/validation/issue inspection, reset/errors,
+structured mapping/validation/issue inspection, existing-question document review,
+notes intent, inline corrections/exclusion, reset/errors,
 200% text scaling, and layout at widths
 320, 375, 390, 768, 1440, and 1920px. Local visual captures and failure traces are written to
 the ignored `apps/web/test-results/` directory.
 
 Supported inputs are DOCX, PDF with selectable text, JSON, and ZIP containing
 JSON. Scanned/image-only PDFs, OCR and legacy DOC are unsupported. Processing
-stays on-device in memory. Documents retain source structure, not inferred
-questions; extraction limitations and safety budgets are in the import pipeline.
+stays on-device in memory. Deterministic document grouping recognizes narrow
+existing-question structures; users check source wording and correct ambiguity.
+No AI, semantic answer inference or generated questions. Extraction limitations
+and safety budgets are in the import pipeline.
 
 GitHub CI runs verification and a separate Chromium E2E job on pull requests
 and pushes to `main`. No deployment is configured.
@@ -73,7 +77,9 @@ breathing room; the canvas has no device frame.
 
 Only an active structured mapping workflow widens the canvas to `78rem` (about
 1248px). Source, mapping controls, and preview form a desktop workspace above
-`68rem`; narrower screens use an ordered vertical flow. The Library and document
+`68rem`; narrower screens use an ordered vertical flow. Document question review
+widens to `72rem`, with source/edit columns above `68rem` and a sequential mobile
+editor with expandable original source. The Library, intent selection and notes
 extraction retain the focused shell.
 
 Tailwind CSS v4 is integrated through the official Vite plugin. Its CSS-first

@@ -6,6 +6,8 @@ async function upload(page: Page, value: unknown, filename = "questions.json") {
     name: filename, mimeType: "application/json", buffer: Buffer.from(JSON.stringify(value)),
   });
   await expect(page.getByRole("heading", { name: "Ready for mapping" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Document question review" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "What are you uploading?" })).toHaveCount(0);
 }
 async function map(page: Page, paths = { prompt: ["q"], choices: ["a"], answer: ["answer"] }) {
   await page.getByLabel("Question (required)", { exact: true }).selectOption(JSON.stringify(paths.prompt));

@@ -1,8 +1,9 @@
 # `@openstudy/mapping`
 
-Pure structured-record transformation between the neutral `@openstudy/import-core`
-boundary and authoritative `@openstudy/schema` validation. React, file parsers,
-document extraction, storage, and crypto are not dependencies of this package.
+Pure structured-record transformation and document-question review between the
+neutral `@openstudy/import-core` boundary and authoritative `@openstudy/schema`
+validation. React, file parsers, binary document extraction, storage, and crypto
+are not dependencies of this package.
 The folder is `structured-mapping`; the public workspace name is
 `@openstudy/mapping`.
 
@@ -126,9 +127,99 @@ or trust arbitrary imported canonical IDs.
 
 ## Documents and development
 
-DOCX/PDF remain at neutral extraction with a truthful next-step message.
-Document question extraction/review must later consume document blocks and their
-locators/warnings, not force paragraphs through these field paths.
+DOCX/text-PDF existing questions use the focused `src/documents/` modules described
+below. Documents never pass through structured field paths. No new workspace or
+runtime dependency is required: reviewed-input-to-canonical transformation already
+belongs to this boundary. Notes remain extraction-only.
+
+### Document candidate contract and grouping
+
+`extractDocumentQuestions(NormalizedDocument)` is pure and deterministic. It
+returns `DocumentQuestions`: source descriptor, ordered temporary candidates,
+and explicit ungrouped content. Candidates contain a source-location temporary ID,
+source block references/opaque locators/pages, optional source number, prompt,
+temporary choice IDs/text/optional literal labels, optional correct-choice
+reference, editable category/explanation, evidence and review reasons.
+`confirmed` and `excluded` are review decisions; candidates are not Questions.
+
+DOCX rules:
+
+- Literal `1. / 1)` numbered prompts and `Question 12` headings (the latter may
+  introduce a following prompt paragraph).
+- Plain prompt followed immediately by labeled alternatives or actual list items.
+  Question-mark punctuation alone is never a boundary.
+- Consecutive `A. / A)` labels or contiguous list roles; numeric alternatives
+  require list structure. Automatic Word numbering labels are not resolved, so
+  unlabelled list answers need manual correct-answer selection.
+- Explicit rectangular unmerged `Question | A | B | ... | Correct` tables,
+  one question per row. Other shapes remain ungrouped. Nested/merged arbitrary
+  tables are not interpreted.
+- Section headings can be editable category suggestions, requiring review.
+  Intervening ambiguous prose remains source context, not invented answer text.
+
+PDF rules preserve page/paint order, concatenate adjacent same-baseline items
+without invented spaces, and split at extracted EOL or baseline changes. They do
+not sort columns, reconstruct tables or recognize semantic headings. Numbered
+prompts, labeled choices and explicit markers/key headings use shared structural
+rules. All PDF candidates require source-order review, even when markers are
+explicit; coordinates do not prove visual order.
+
+Only `Correct answer: B / Answer: B` or an explicit Correct table cell selects an
+answer with a unique literal label. `Answer key` introduces exact-number entries
+such as `1. B`, or an explicit `Question/Number | Answer/Correct` table.
+Numbering is matched exactly, never fuzzily or by entry order. Multiple markers
+(even agreeing), duplicate question/key numbers, missing/unmatched numbers and
+unresolvable labels remain flagged/unresolved; malformed/unmatched keys stay
+visible in ungrouped content. Formatting never proves correctness.
+
+Evidence is a small enum with no confidence scores; review reasons include
+ambiguous boundaries/choices, duplicate numbers, key issues, PDF order,
+category suggestions, revisions, unsupported extraction and source overlap.
+Source text/runs remain unchanged upstream; candidate presentation strips explicit
+labels only. The UI reads original `ExtractedDocument` separately for comparison.
+Grouping uses no random/time/network/environment inputs.
+
+### Review and final validation APIs
+
+`createReviewSession` and `reviewReducer` implement scoped immutable editing,
+navigation, correct-answer selection, confirmation, exclusion, and ungrouped
+acknowledgement. Temporary IDs survive edits; added choice IDs use a monotonic
+session-local counter, not canonical identity. Edits clear confirmation. Adding
+is capped at 20 answers; extraction never truncates existing answers. Oversized
+candidates remain incomplete until the user explicitly removes excess answers.
+
+`inspectCandidate` classifies ready / needs-review / incomplete / ignored and
+returns field-targeted readable issues. Missing answers require selection;
+blank prompts/choices or fewer than two answers are incomplete. Optional category/
+explanation use exact text, with empty string meaning cleared. Every included
+candidate requires explicit confirmation after the latest correction, including
+acknowledging source uncertainties. Excluded candidates retain their entire draft
+but do not block readiness; un-exclusion restores normal checks.
+
+`reviewCounts` reports total/reviewed/included/excluded/unresolved.
+`finalizeDocumentReview(session, identity, title)` checks all included drafts,
+ungrouped acknowledgement, nonempty questions and metadata before assembly.
+It calls `QuestionSchema` per included question and `StudySetSchema` for the whole
+set. Failure has issues but no partial candidate. All excluded/zero detected
+questions cannot create an empty ready StudySet.
+
+Canonical IDs reuse `canonicalId` from structured mapping:
+`os:<128-bit namespace>:set/source/q:<position>/q:<position>:c:<choice>/category:<first position>`.
+The browser generates the namespace only on explicit final validation, not during
+document grouping/editing. Exact category labels share first-occurrence registry
+IDs; source numbers/text/locators are never canonical identity. Source order and
+original positions (including exclusion gaps) are preserved. Provenance uses
+one existing `{sourceId, locator}` entry per contributing block/row/cell/PDF item
+range, including answer-key markers and suggested sections. Locators are opaque,
+source-local, parser-version-dependent; multiple entries can share one source.
+No schema change or detailed document data is embedded in canonical Questions.
+
+The frontend renders one candidate editor, an expandable original source
+(open by default on wide desktop), previous/next and next-unresolved navigation.
+Ungrouped content is paginated and requires explicit acceptance of omission.
+Unrecognized missing questions must be corrected in the source and re-uploaded;
+this is not a general document editor or arbitrary-document understanding.
+Reload/navigation/file/intent reset loses decisions; no persistence/autosave exists.
 
 Repository `typecheck`, `test`, `build`, and `verify` include this workspace.
 Source aliases support checks before generated `dist` exists; workspace build

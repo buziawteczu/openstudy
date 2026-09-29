@@ -8,10 +8,11 @@ import {
   type MappingPreview, type MappingResult, type MappingTarget, type RecordPreview,
 } from "./contracts.js";
 import { MAX_PATH_DEPTH, readField } from "./fields.js";
+import { canonicalId } from "./identity.js";
 
 type SchemaProblem = { readonly code: string; readonly path: readonly PropertyKey[] };
 type Registry = Map<string, Category>;
-const id = (input: MappingInput, suffix: string) => "os:" + input.identity.namespace + ":" + suffix;
+const id = (input: MappingInput, suffix: string) => canonicalId(input.identity, suffix);
 const pathValid = (path: unknown): path is FieldPath => Array.isArray(path)
   && path.length > 0 && path.length <= MAX_PATH_DEPTH && path.every((part) => typeof part === "string");
 const issue = (recordIndex: number | null, target: MappingIssue["target"], code: string, message: string): MappingIssue =>

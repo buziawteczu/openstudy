@@ -24,10 +24,10 @@ describe("document Import screen", () => {
     expect(screen.getByRole("status")).toHaveTextContent("5 paragraphs extracted");
     expect(screen.getByRole("status")).toHaveTextContent("1 table extracted");
     expect(screen.getByRole("status")).toHaveTextContent("Content ready for review");
-    expect(screen.getByRole("status")).toHaveTextContent("No questions have been created");
+    expect(screen.getByRole("status")).toHaveTextContent("Choose how to use the extracted content");
     expect(screen.queryByText("Ready for mapping")).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Structured mapping" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Question extraction and review for documents will be added next");
+    expect(screen.getByRole("heading", { name: "What are you uploading?" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
   });
   it("announces PDF pages and extracted text without false DOCX counts", async () => {
@@ -39,7 +39,7 @@ describe("document Import screen", () => {
     expect(screen.queryByText(/paragraphs extracted/)).not.toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("reading order may need review");
     expect(screen.queryByRole("region", { name: "Structured mapping" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Question extraction and review for documents will be added next");
+    expect(screen.getByRole("heading", { name: "What are you uploading?" })).toBeInTheDocument();
   });
   it("surfaces blank pages in a mixed PDF", async () => {
     const user = userEvent.setup();

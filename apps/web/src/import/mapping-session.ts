@@ -12,5 +12,5 @@ export function createMappingIdentity(): MappingIdentity | undefined {
 }
 
 export function defaultStudySetTitle(filename: string): string {
-  return filename.replace(/\.(json|zip)$/i, "") || "Untitled study set";
+  return filename.replace(/\.(json|zip|docx|pdf)$/i, "") || "Untitled study set";
 }

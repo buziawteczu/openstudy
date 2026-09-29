@@ -7,7 +7,9 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@openstudy/import-core": ["../../packages/import-core/src/index.ts"]
+      "@openstudy/import-core": ["../../packages/import-core/src/index.ts"],
+      "@openstudy/mapping": ["../../packages/structured-mapping/src/index.ts"],
+      "@openstudy/schema": ["../../packages/schema/src/index.ts"]
     },
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],

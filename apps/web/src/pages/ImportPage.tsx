@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ingestFile, type IngestionSummary } from "../import/ingest-file.js";
 import { ingestionErrorMessage, type IngestionFailure } from "../import/errors.js";
+import { MappingWorkspace } from "../components/MappingWorkspace.js";
 
 type State =
   | { kind: "idle" }
@@ -42,6 +43,7 @@ export function ImportPage() {
   }
 
   const filename = state.kind === "reading" ? state.filename : state.kind === "success" ? state.summary.filename : state.kind === "error" ? state.error.filename : undefined;
+  const structured = state.kind === "success" && state.summary.kind === "structured";
   return (
     <>
       <title>Import | OpenStudy</title>
@@ -49,9 +51,9 @@ export function ImportPage() {
         <p className="eyebrow">Import</p>
         <h1 tabIndex={-1}>Import study material</h1>
       </div>
-      <section className="rounded-surface border border-border bg-surface p-card" aria-labelledby="choose-file-title">
+      <section className={"rounded-surface border border-border bg-surface " + (structured ? "p-6" : "p-card")} aria-labelledby="choose-file-title">
         <h2 id="choose-file-title">Choose your material</h2>
-        <p id="file-help" className="mt-3 text-muted">Choose a DOCX, PDF with selectable text, JSON, or ZIP containing JSON files. Scanned PDFs and legacy DOC files aren't supported yet.</p>
+        <p id="file-help" className={structured ? "sr-only" : "mt-3 text-muted"}>Choose a DOCX, PDF with selectable text, JSON, or ZIP containing JSON files. Scanned PDFs and legacy DOC files aren't supported yet.</p>
         <label htmlFor="source-file" className="mt-6 block text-small font-semibold">Study material file</label>
         <input
           ref={input} id="source-file" type="file" accept=".docx,.pdf,.json,.zip"
@@ -60,16 +62,16 @@ export function ImportPage() {
           className="mt-2 block min-h-[48px] w-full min-w-0 max-w-full rounded-small text-small file:mr-3 file:min-h-[48px] file:cursor-pointer file:rounded-small file:border-0 file:bg-accent file:px-4 file:py-3 file:font-semibold file:text-surface hover:file:bg-accent-hover disabled:opacity-60"
           onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file) void choose(file); }}
         />
-        <p id="file-privacy" className="mt-3 text-small text-muted">Files are processed on this device.</p>
+        <p id="file-privacy" className={structured ? "sr-only" : "mt-3 text-small text-muted"}>Files are processed on this device.</p>
         {filename && <p className="mt-6 font-semibold [overflow-wrap:anywhere]">{filename}</p>}
-        <div role="status" aria-live="polite" aria-atomic="true" className="mt-3">
+        <div role="status" aria-live="polite" aria-atomic="true" className={structured ? "ingestion-status mt-3" : "mt-3"}>
           {state.kind === "reading" && <p>Reading and inspecting…</p>}
           {state.kind === "success" && state.summary.kind === "structured" && <>
             <h2 className="text-success">Ready for mapping</h2>
-            <p className="mt-2">{state.summary.sources.length} JSON {state.summary.sources.length === 1 ? "file" : "files"} found</p>
+            <p>{state.summary.sources.length} JSON {state.summary.sources.length === 1 ? "file" : "files"} found</p>
             <p>{state.summary.collectionCount} {state.summary.collectionCount === 1 ? "collection" : "collections"} discovered</p>
             <p>{state.summary.recordCount} {state.summary.recordCount === 1 ? "record" : "records"} discovered</p>
-            <p className="mt-3 text-small text-muted">Mapping is coming next. Nothing has been added to your library.</p>
+            <p className="mt-3 text-small text-muted">Choose a collection below, then map its fields. Nothing has been added to your library.</p>
           </>}
           {state.kind === "success" && state.summary.kind === "document" && <>
             <h2 className="text-success">Document extracted</h2>
@@ -87,13 +89,16 @@ export function ImportPage() {
               {state.summary.document.warnings.some((warning) => warning === "omitted-docx-parts" || warning === "unsupported-content") && <p className="text-small text-muted">Some document features or sections could not be extracted. Review against the original file.</p>}
             </>}
             <p className="mt-3 font-semibold">Content ready for review</p>
-            <p className="mt-2 text-small text-muted">Review and mapping are coming next. No questions have been created and nothing has been added to your library.</p>
+            <p className="mt-2 text-small text-muted">Question extraction and review for documents will be added next. No questions have been created and nothing has been added to your library.</p>
           </>}
         </div>
         {state.kind === "error" && <p role="alert" className="mt-3 text-danger [overflow-wrap:anywhere]">{ingestionErrorMessage(state.error)}</p>}
-        {state.kind !== "idle" && <button type="button" className="action cursor-pointer" onClick={reset}>{state.kind === "reading" ? "Cancel" : "Choose another file"}</button>}
-        <div><Link className="back-link" to="/"><span aria-hidden="true">←</span> Back to library</Link></div>
+        <div className={structured ? "ingestion-actions" : undefined}>
+          {state.kind !== "idle" && <button type="button" className="action cursor-pointer" onClick={reset}>{state.kind === "reading" ? "Cancel" : "Choose another file"}</button>}
+          <div><Link className="back-link" to="/"><span aria-hidden="true">←</span> Back to library</Link></div>
+        </div>
       </section>
+      {state.kind === "success" && state.summary.kind === "structured" && <MappingWorkspace summary={state.summary} />}
     </>
   );
 }

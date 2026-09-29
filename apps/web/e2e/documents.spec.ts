@@ -12,6 +12,8 @@ test("DOCX extraction, long filenames and reset work locally without question ma
   await expect(page.getByRole("heading", { name: "Document extracted" })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("Content ready for review");
   await expect(page.getByRole("status")).toContainText("No questions have been created");
+  await expect(page.getByRole("region", { name: "Structured mapping" })).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("Question extraction and review for documents will be added next");
   await expect(page.getByText(name, { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("docx-extracted.png"), fullPage: true });
   await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
@@ -45,6 +47,8 @@ test("PDF text, scanned error and encryption use the bundled local worker withou
   await expect(page.getByRole("heading", { name: "Document extracted" })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("2 pages processed");
   await expect(page.getByRole("status")).toContainText("Selectable text extracted");
+  await expect(page.getByRole("region", { name: "Structured mapping" })).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("Question extraction and review for documents will be added next");
   await page.screenshot({ path: testInfo.outputPath("pdf-extracted.png"), fullPage: true });
   expect(await page.evaluate(() => Reflect.get(globalThis, "documentScriptExecuted"))).toBeUndefined();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

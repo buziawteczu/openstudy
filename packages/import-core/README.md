@@ -127,8 +127,12 @@ There is no UI error copy or parsing error model here.
 
 Local web JSON/ZIP ingestion delivers normalized structured values to this adapter.
 Each JSON input/ZIP entry can have its own source descriptor and candidate.
-Mapping will later turn a reviewed collection into a canonical candidate, with
-explicit identity/provenance decisions and validation by `@openstudy/schema`.
+The separate [`@openstudy/mapping`](../structured-mapping/README.md) package now
+turns one explicitly selected structured collection into an all-valid canonical
+candidate in memory. It owns serializable object-key mapping paths, explicit
+zero/one-based or exact-text answer interpretation, canonical identity/provenance,
+sampled preview, and record/whole-set validation using `@openstudy/schema`.
+Import-core remains schema-free and does not interpret question semantics.
 Local DOCX/PDF extraction supplies the separate document model. Future reviewed
 mapping may project tables/records without changing StudySet or study logic. See
 [the import pipeline](../../docs/import-pipeline.md) for ownership and future flows.
@@ -144,5 +148,5 @@ npm run verify
 
 The production TypeScript build uses only `ES2022` libraries and no ambient
 Node/browser types. Tests use the repository's existing Node test runner/`tsx`
-toolchain and synthetic in-memory data. No file ingestion, mapping, persistence,
+toolchain and synthetic in-memory data. This package implements no file ingestion, mapping, persistence,
 canonical construction, study behavior, or AI functionality is implemented.

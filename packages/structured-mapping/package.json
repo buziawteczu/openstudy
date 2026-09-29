@@ -1,0 +1,25 @@
+{
+  "name": "@openstudy/mapping",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Explicit structured mapping and canonical candidate validation",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": "^22.22.0 || ^24.0.0 || >=26.0.0" },
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@openstudy/import-core": "0.1.0",
+    "@openstudy/schema": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

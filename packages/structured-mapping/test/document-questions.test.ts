@@ -58,6 +58,18 @@ test("Question heading followed by paragraph and contiguous unlabeled list", () 
   assert.deepEqual(result.candidates[0]!.choices.map((choice) => choice.text), ["Green", "Red"]);
   assert.equal(result.candidates[0]!.correctChoiceId, undefined, "unresolved automatic list labels are not invented");
 });
+test("Question numbers require a boundary before prompt text", () => {
+  for (const text of ["Question 1st draft", "Question 12appendix"]) {
+    const candidate = group([p(text), p("A. x"), p("B. y"), p("Answer: A")]).candidates[0]!;
+    assert.equal(candidate.prompt, text);
+    assert.equal(candidate.sourceNumber, undefined);
+    assert.ok(!candidate.evidence.includes("explicit-question-number"));
+  }
+  for (const text of ["Question 12", "Question 12: Prompt", "Question 12. Prompt",
+    "Question 12 Prompt", "Question 12) Prompt", "Question 12 - Prompt", "question 12: Prompt"]) {
+    assert.equal(group([p(text)]).candidates[0]!.sourceNumber, "12");
+  }
+});
 test("blank question heading does not consume an explanation as its prompt", () => {
   const candidate = group([p("Question 1", "heading"), p("Explanation: Because the source says so."),
     p("A. First"), p("B. Second"), p("Answer: A")]).candidates[0]!;
@@ -126,6 +138,16 @@ test("explicit explanation is preserved without paraphrasing", () => {
   const candidate = group([p("1. Prompt"), p("A. x"), p("B. y"), p("Explanation:  Exact wording ") ]).candidates[0]!;
   assert.equal(candidate.explanation, "Exact wording ");
 });
+test("multiple explicit explanations keep the first and require review of both source lines", () => {
+  const first = p("Explanation: First reason");
+  const second = p("Explanation: Second reason");
+  const candidate = group([p("1. Prompt"), p("A. x"), p("B. y"), first, second, p("Answer: A")]).candidates[0]!;
+  assert.equal(candidate.explanation, "First reason");
+  assert.ok(candidate.reviewReasons.includes("multiple-explanations"));
+  assert.ok(inspectCandidate(candidate).issues.some((issue) => issue.message.includes("More than one explanation marker")));
+  assert.ok(candidate.sourceBlockRefs.some((ref) => ref.locator === first.locator));
+  assert.ok(candidate.sourceBlockRefs.some((ref) => ref.locator === second.locator));
+});
 test("answer key associates by number, not order", () => {
   const firstKey = p("1. B");
   const result = group([p("2. Prompt2"), p("A. x"), p("B. y"), p("1. Prompt1"), p("A. a"), p("B. b"),
@@ -163,6 +185,46 @@ test("orphan answer-key entry remains explicit ungrouped source content", () => 
     text: "99. A", reason: "unmatched-answer-key",
   }]);
   assert.ok(!result.candidates[0]!.reviewReasons.includes("unmatched-answer-key"));
+});
+test("answer-key mode ends at a later section without contaminating its questions", () => {
+  const result = group([p("1. First prompt"), p("A. x"), p("B. y"),
+    p("Answer key", "heading"), p("1. A"), p("Later section", "heading"),
+    p("Question 2", "heading"), p("Second prompt"), p("A. a"), p("B. b"), p("Answer: B")]);
+  assert.equal(result.candidates.length, 2);
+  assert.equal(result.candidates[0]!.correctChoiceId, result.candidates[0]!.choices[0]!.temporaryId);
+  assert.equal(result.candidates[1]!.prompt, "Second prompt");
+  assert.equal(result.candidates[1]!.correctChoiceId, result.candidates[1]!.choices[1]!.temporaryId);
+  assert.ok(!result.candidates[1]!.reviewReasons.includes("unmatched-answer-key"));
+});
+test("an explicit question heading ends answer-key mode without a section heading", () => {
+  const result = group([p("1. First prompt"), p("A. x"), p("B. y"),
+    p("Answer key"), p("1. A"), p("Question 2"), p("Second prompt"),
+    p("A. a"), p("B. b"), p("Answer: B")]);
+  assert.equal(result.candidates.length, 2);
+  assert.equal(result.candidates[1]!.sourceNumber, "2");
+  assert.equal(result.candidates[1]!.prompt, "Second prompt");
+  assert.equal(result.candidates[1]!.correctChoiceId, result.candidates[1]!.choices[1]!.temporaryId);
+});
+test("a numbered prompt with choices ends key mode, while malformed keys stay ungrouped", () => {
+  const malformed = p("99. Unknown");
+  const orphan = p("88. A");
+  const result = group([p("1. First prompt"), p("A. x"), p("B. y"),
+    p("Answer key"), p("1. B"), malformed, orphan,
+    p("2. Second prompt"), p("A. a"), p("B. b"), p("Answer: A")]);
+  assert.equal(result.candidates.length, 2);
+  assert.equal(result.candidates[0]!.correctChoiceId, result.candidates[0]!.choices[1]!.temporaryId);
+  assert.equal(result.candidates[1]!.prompt, "Second prompt");
+  assert.equal(result.candidates[1]!.correctChoiceId, result.candidates[1]!.choices[0]!.temporaryId);
+  assert.ok(result.ungrouped.some((entry) => entry.ref.locator === malformed.locator && entry.text === malformed.runs[0]!.text));
+  assert.ok(result.ungrouped.some((entry) => entry.ref.locator === orphan.locator && entry.text === "88. A"));
+});
+test("missing keys still flag earlier questions after answer-key mode ends", () => {
+  const result = group([p("1. First prompt"), p("A. x"), p("B. y"),
+    p("Answer key", "heading"), p("99. A"), p("Later section", "heading"),
+    p("2. Second prompt"), p("A. a"), p("B. b"), p("Answer: B")]);
+  assert.ok(result.candidates[0]!.reviewReasons.includes("unmatched-answer-key"));
+  assert.ok(!result.candidates[1]!.reviewReasons.includes("unmatched-answer-key"));
+  assert.ok(result.ungrouped.some((entry) => entry.text === "99. A"));
 });
 for (const entries of [["1. A", "1. B"], ["9. A"], ["malformed entry"]] as const) test("ambiguous/unmatched answer key: " + entries.join(", "), () => {
   const result = group([p("1. Prompt"), p("A. x"), p("B. y"), p("Answer key"), ...entries.map((entry) => p(entry))]);

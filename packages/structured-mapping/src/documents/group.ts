@@ -59,7 +59,7 @@ function docxUnits(blocks: readonly DocumentBlock[]): Unit[] {
   }));
 }
 const numbered = (text: string) => text.match(/^\s*(\d+)[.)]\s+([\s\S]+)$/u);
-const questionHeading = (text: string) => text.match(/^\s*Question\s+(\d+)\s*[:.)-]?\s*([\s\S]*)$/iu);
+const questionHeading = (text: string) => text.match(/^\s*Question\s+(\d+)(?:\s*[:.)-]\s*|\s+|$)([\s\S]*)$/iu);
 const choice = (text: string) => text.match(/^\s*([A-Z])[.)]\s*([\s\S]*)$/u);
 const numericChoice = (text: string) => text.match(/^\s*(\d+)[.)]\s+([\s\S]+)$/u);
 const answer = (text: string) => text.match(/^\s*(?:Correct answer|Answer)\s*:\s*([A-Z]|\d+)\s*[.)]?\s*$/iu);
@@ -77,6 +77,7 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
   const used = new Set<string>();
   const ungrouped: UngroupedContent[] = [];
   const keys: { number: string; label: string; ref: SourceBlockRef }[] = [];
+  const keyExpected = new Set<Draft>();
   let current: Draft | undefined;
   let section: Unit | undefined;
   let keyMode = false;
@@ -154,7 +155,16 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
     const unit = units[i]!;
     const text = unit.text;
     if (!/\S/u.test(text)) continue;
-    if (isKeyHeading(text)) { keyMode = true; current = undefined; used.add(unit.ref.locator); continue; }
+    if (isKeyHeading(text)) {
+      keyMode = true; current = undefined; used.add(unit.ref.locator);
+      for (const draft of drafts) keyExpected.add(draft);
+      continue;
+    }
+    const next = units[i + 1];
+    const following = units[i + 2];
+    const numberedQuestion = numbered(text) && !keyEntry(text) && next && following
+      && ((choice(next.text) && choice(following.text)) || (next.kind === "list-item" && following.kind === "list-item"));
+    if (keyMode && (unit.kind === "heading" || questionHeading(text) || numberedQuestion)) keyMode = false;
     if (unit.table) { current = undefined; table(unit); continue; }
     if (keyMode) {
       const entry = keyEntry(text);
@@ -174,7 +184,11 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
       current.markers.push({ label: marker[1]!.toUpperCase(), refs: [unit.ref], key: false });
       add(current, unit); continue;
     }
-    if (current && explain) { current.explanation = explain[1]!; add(current, unit); continue; }
+    if (current && explain) {
+      if (current.explanation) current.reviewReasons.push("multiple-explanations");
+      else current.explanation = explain[1]!;
+      add(current, unit); continue;
+    }
     if (current && (labeled || listChoice)) {
       const match = labeled ?? numericChoice(text);
       if (current.markers.length || current.explanation) current.reviewReasons.push("ambiguous-choices");
@@ -194,7 +208,6 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
     }
     if (unit.kind === "heading") { section = unit; current = undefined; continue; }
     // Plain prompt requires an immediately following labeled alternative or actual list role.
-    const next = units[i + 1];
     if (!labeled && next && (choice(next.text) || next.kind === "list-item")) {
       if (current && current.choices.length === 0) {
         current.reviewReasons.push("ambiguous-boundary"); add(current, unit);
@@ -228,7 +241,7 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
       for (const draft of group ?? []) draft.reviewReasons.push("unmatched-answer-key");
     }
   }
-  if (keyMode) for (const draft of drafts) {
+  for (const draft of keyExpected) {
     if (draft.sourceNumber === undefined || !byKeyNumber.has(draft.sourceNumber)) draft.reviewReasons.push("unmatched-answer-key");
   }
   for (const unit of units) if (!used.has(unit.ref.locator) && /\S/u.test(unit.text)) {

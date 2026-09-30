@@ -7,7 +7,7 @@ export interface SourceBlockRef {
 }
 export type Evidence = "explicit-question-number" | "contiguous-choice-list" | "labeled-choices"
   | "explicit-question-table" | "explicit-answer-marker" | "explicit-answer-key-match" | "formatting-present";
-export type ReviewReason = "ambiguous-boundary" | "ambiguous-choices" | "multiple-answer-markers"
+export type ReviewReason = "ambiguous-boundary" | "ambiguous-choices" | "multiple-answer-markers" | "multiple-explanations"
   | "unmatched-answer-key" | "duplicate-question-number" | "pdf-reading-order"
   | "category-suggestion" | "source-overlap" | "source-revisions" | "unsupported-content";
 export interface CandidateChoice {
@@ -45,6 +45,7 @@ export const REVIEW_REASON_LABELS: Readonly<Record<ReviewReason, string>> = {
   "ambiguous-boundary": "Question boundary is unclear. Compare the source and correct the grouping.",
   "ambiguous-choices": "Answer labels or list grouping are unclear. Check every answer.",
   "multiple-answer-markers": "More than one answer marker was found. Choose the correct answer yourself.",
+  "multiple-explanations": "More than one explanation marker was found. Compare all source explanations before confirming.",
   "unmatched-answer-key": "An answer-key reference could not be matched uniquely. Check the source key.",
   "duplicate-question-number": "This question number appears more than once. Check the source numbering.",
   "pdf-reading-order": "PDF text order may differ from the page. Check the prompt and answer order against the original file.",

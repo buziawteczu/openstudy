@@ -70,7 +70,7 @@ local persistence
 study engine ----> Learn / Flashcards / Test
 ```
 
-Document input (implemented through normalization; later stages remain future):
+Document input (existing-question review implemented; generation remains future):
 
 ```text
 binary source
@@ -85,17 +85,24 @@ deterministic extraction where possible
 NormalizedDocument
     |
     v
-Importer or optional Generator
+explicit intent: existing questions/tests OR notes
     |
     v
-canonical StudySet candidate
+existing questions -> deterministic candidates -> human review/correction
+                   -> schema-validated StudySet candidate -> STOP in memory
+notes -> extracted content only (future generation, not implemented)
 ```
 
 `SourceDocument` and `NormalizedDocument` are not alternative StudySet shapes. They belong upstream and may contain paragraphs, tables, pages, images, formatting, and extraction metadata that the study engine should never see.
 
 ## Canonical boundary
 
-All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. `@openstudy/mapping` (in `packages/structured-mapping`) consumes those neutral structured records and the canonical schema: pure explicit transformation, record validation, and whole-StudySet validation. React only coordinates its APIs. The implemented flow stops at an all-valid candidate in memory, not persistence. See [the import pipeline](import-pipeline.md) for structured mapping and deferred document question review.
+All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. `@openstudy/mapping` (in `packages/structured-mapping`) consumes neutral structured records or normalized documents and the canonical schema. Its separate `documents/` modules own conservative existing-question grouping, temporary candidates, pure review transformations and final validation. The structured transformer is unchanged apart from extracting its ID formatter into a shared utility. React coordinates intent, a scoped reducer, navigation and presentation. Both implemented question flows stop at an all-valid candidate in memory, not persistence. See [the import pipeline](import-pipeline.md).
+
+This extends the existing focused mapping boundary instead of creating another
+workspace: neutral reviewed content becoming canonical content is already its
+responsibility. Import-core remains schema/semantic-free, document parsers stay
+in the web layer, and document rules do not enter canonical schema 1.0.0.
 
 The canonical model makes the question type explicit. V1 implements only single-choice behavior. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 
@@ -169,7 +176,7 @@ Confidential or private sharing would require a separate threat model covering a
 The architecture needs seams for the following without implementing registries now:
 
 - **Structured source adapters:** normalized structured inputs to neutral record collections ready for later mapping.
-- **Mapping:** `@openstudy/mapping` transforms explicit structured field paths into all-valid canonical candidates; document question extraction/review remains a separate future boundary.
+- **Mapping:** `@openstudy/mapping` transforms explicit structured field paths or reviewed document-question candidates into all-valid canonical candidates. Document grouping/review is a separate focused module, not a structured-record adapter or a question generator.
 - **Document extractors:** binary sources to `NormalizedDocument`.
 - **Question generators:** normalized content to reviewable candidates; deterministic/manual operation must remain possible.
 - **Schema migrations:** explicit version-to-version transforms.

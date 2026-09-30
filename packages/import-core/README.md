@@ -46,7 +46,7 @@ no canonical identity is generated.
 Normalization accepts valid resource-bounded extractor output, not arbitrary
 unknown data or file bytes. Readonly types are not runtime freezing. Safety and
 parser budgets belong upstream. No automatic document-to-record adapter,
-question inference, mapping or generation is implemented.
+question inference, mapping or generation is implemented in import-core.
 
 ## Adapter contract
 
@@ -133,8 +133,11 @@ candidate in memory. It owns serializable object-key mapping paths, explicit
 zero/one-based or exact-text answer interpretation, canonical identity/provenance,
 sampled preview, and record/whole-set validation using `@openstudy/schema`.
 Import-core remains schema-free and does not interpret question semantics.
-Local DOCX/PDF extraction supplies the separate document model. Future reviewed
-mapping may project tables/records without changing StudySet or study logic. See
+Local DOCX/PDF extraction supplies the separate document model. The mapping
+package's focused `documents/` modules now group existing questions using explicit
+source structure, retain temporary candidates/evidence/provenance, apply reviewed
+corrections and validate the complete canonical candidate. Notes intent never
+runs grouping. Import-core still has no question semantics or schema dependency. See
 [the import pipeline](../../docs/import-pipeline.md) for ownership and future flows.
 
 From the repository root, existing workspace commands include this package:

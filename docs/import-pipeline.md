@@ -6,9 +6,10 @@ The import pipeline converts untrusted external material into a validated canoni
 
 The implemented local inputs are JSON, ZIP containing JSON, DOCX, and PDF with
 selectable text. JSON/ZIP record collections now support explicit mapping and
-complete canonical validation into an in-memory StudySet candidate. DOCX/PDF
-stop at neutral extraction. Persistence, study, and document question review
-remain future work.
+complete canonical validation into an in-memory StudySet candidate. DOCX/text-PDF
+existing questions now support deterministic grouping, review/correction and the
+same final canonical boundary. Notes stop at extracted content. Persistence,
+study and generating questions from notes remain future work.
 
 ## Implemented neutral boundary (`@openstudy/import-core`)
 
@@ -17,6 +18,8 @@ local JSON/ZIP ingestion at `/import` and a format-neutral record-array adapter.
 Conceptual PR 6 adds document contracts, DOCX extraction, and text-PDF extraction.
 Conceptual PR 7 adds structured mapping in `@openstudy/mapping`; import-core
 itself stays neutral. Documents are not StudySets or structured record arrays.
+Conceptual PR 8 adds document-question grouping/review in that mapping package's
+separate `documents/` modules, not in parsers, React or schema.
 
 | Stage | Representation and owner |
 | --- | --- |
@@ -74,8 +77,8 @@ import path must explicitly validate/migrate declared canonical material; generi
 collection discovery is not a substitute for that boundary.
 
 DOCX/PDF extraction retains `SourceDocument`, `ExtractedDocument`, and
-`NormalizedDocument` representations. Future reviewed mapping may project suitable
-tables into the structured boundary; paragraphs/pages are not forced into record
+`NormalizedDocument` representations. Existing-question grouping consumes these
+blocks directly; paragraphs/pages/tables are not forced into structured record
 arrays. Study continues to consume validated canonical data only.
 
 See [the import-core README](../packages/import-core/README.md) and
@@ -169,10 +172,10 @@ below `68rem`. Labels, native controls, a radio fieldset, linked errors,
 polite final summary, deliberate summary/inspection focus, and visible focus
 support keyboard operation. Live preview never moves focus.
 
-DOCX/PDF never show this mapper. Their summary says question extraction and
-review for documents will be added next. No document question extraction,
-automatic/AI mapping, fuzzy matching, question deduplication, saved presets,
-local storage, or study modes are implemented.
+DOCX/PDF never show this structured mapper; they show an explicit intent selector
+and the separate document workflow below. No automatic/AI structured mapping,
+fuzzy matching, question deduplication, saved presets, local storage or study
+modes are implemented.
 
 ### Structured runtime dependency and browser baseline
 
@@ -427,10 +430,12 @@ ExtractedDocument (ordered, serializable source blocks)
 NormalizedDocument
         |
         v
-STOP: content ready for future review/mapping
+explicit document intent
         |
         v
-future reviewed mapping / optional generation -> canonical candidate -> validation
+questions/tests -> deterministic candidates -> review/correction
+                -> canonical candidate -> schema validation -> STOP in memory
+notes -> extracted content only -> STOP (generation is a future feature)
 ```
 
 Raw File/Blob, source descriptor, extracted blocks, normalized document, mapping
@@ -593,11 +598,83 @@ found" or a completed import. Counts describe source structure. Shared accessibl
 status/alerts, reset/cancel and file picker remain; summaries/long names wrap on
 the focused app canvas.
 
-Future review must distinguish **existing questions/tests** (faithful mapping)
-from **study material/notes** (possible optional generation). No selector is added
-because intent does not change extraction. No mapping UX, OCR, legacy DOC,
-question/answer detection, generation, canonical StudySet/IDs, storage, Library
+The explicit **What are you uploading?** choice distinguishes **Questions or an
+existing test** from **Study material / notes**. Binary extraction is unchanged.
+Questions enter deterministic grouping and review; notes show extracted content
+and `Creating questions from study material will be added later`. The notes path
+never invokes grouping, and no generation, OCR, legacy DOC, storage, Library
 entries or study features are implemented.
+
+## Implemented document-question review
+
+The focused document modules in `@openstudy/mapping` own temporary candidates,
+format-specific structural grouping, immutable review transformations and
+canonical validation. This extends the existing reviewed-input mapping boundary,
+without adding a workspace or changing schema 1.0.0. React owns intent and a scoped
+reducer, not extraction rules. Grouping runs once per extracted document's
+question path and is reused if intent changes; edits never rerun extraction.
+
+Supported structures are deliberately narrow: literal numbered prompts,
+`Question 12` headings, a prompt immediately followed by actual list items or
+consecutive labeled alternatives, and DOCX rectangular unmerged tables with
+`Question | A | B | ... | Correct` headers. Arbitrary paragraphs/tables and
+question-mark punctuation alone are not interpreted. PDF paint order is preserved;
+source EOL/baseline changes form lines, without guessed column sorting or table
+reconstruction. PDF candidates always require source-order review.
+
+Correct answers come only from uniquely matching explicit letter/numeric labels
+in `Correct answer: B` / `Answer: B`, explicit table Correct cells or exact-number
+answer-key matches. `Answer key` sections support `1. B` lines and explicit
+`Question/Number | Answer/Correct` DOCX tables. Duplicate/missing/unmatched numbers
+and multiple markers (including agreeing markers) require manual review, never
+first-match/fuzzy selection. Automatic DOCX list labels are unavailable upstream
+and not guessed. Bold/italic/underline is evidence only, never correctness.
+
+Candidates have stable temporary source-location IDs, source references/optional
+numbers, prompt, choices with temporary IDs, optional correct answer,
+category/explanation, deterministic evidence/reasons and review decisions.
+Categories from section headings are editable suggestions; only an explicit
+`Explanation:` marker prefills an explanation. Original extracted wording/format
+stays separate from candidate edits. Unsupported structures and unmatched keys
+remain visible as paginated ungrouped content, requiring explicit acceptance of
+their omission. Missing unrecognized questions must be fixed in the source file
+and re-uploaded; this is not an arbitrary document editor.
+
+One current question is edited at a time: prompt/answer text, add/remove answers
+(2–20 for readiness), correct-answer selection, category/explanation and explicit
+exclude/un-exclude. Extraction does not truncate oversized answer lists. Source
+numbering is displayed but never canonical identity. Each included question
+requires confirmation; editing clears it. States are Ready, Needs review,
+Incomplete and Excluded, with linked readable reasons rather than numeric scores.
+Source text is expandable on mobile, initially open in a wider desktop source/
+editor split. Native keyboard controls, visible focus, candidate-heading focus on
+navigation, linked errors and polite position/count/final summaries are retained.
+Confirmation/live edits do not steal focus. All state is session-local; reset,
+intent change, route navigation or reload discards review decisions.
+
+Explicit final validation blocks unresolved included candidates, unacknowledged
+ungrouped content, blank metadata and zero included questions. Exclusions are
+counted and retained in the session, not silently dropped. Only a complete
+QuestionSchema/StudySetSchema-valid set is returned, never a partial candidate.
+The summary shows reviewed/included/excluded/unresolved; `Study set ready` means
+in memory only.
+
+Canonical IDs share structured mapping's ID formatter and browser 128-bit CSPRNG
+namespace, obtained only at the final document boundary. IDs use original candidate/
+choice positions and portable suffixes, never mutable wording/source numbers.
+Exact category labels form the same first-occurrence registry. Provenance uses
+existing `{sourceId, locator}` entries for contributing DOCX blocks/rows/cells and
+PDF page/item ranges, including answer-key evidence. Detailed document structures
+and temporary IDs stay upstream; opaque locators may change with parser/source
+versions. No schema changes, AI, semantic correctness, notes generation,
+deduplication, persistence, IndexedDB/Dexie, Library entries or study modes.
+
+Core tests cover DOCX/PDF grouping, explicit keys/tables, ambiguity/determinism/
+fidelity/provenance and reducer/final validation invariants. Component tests cover
+intent, no grouping for notes, one-editor navigation, corrections, exclusion,
+readiness/reset and JSON/ZIP separation. Detailed browser flows run on mobile and
+desktop; responsive/keyboard/source expansion/200% checks use the existing six
+viewports. Existing ingestion and structured mapping regressions remain in place.
 
 ## Future AI and Jev assistance
 

@@ -218,7 +218,7 @@ function DocumentReviewWorkspace({ summary, grouped }: { summary: DocumentIngest
         {grouped.ungrouped.slice(ungroupedPage * 5, ungroupedPage * 5 + 5).map((entry, index) => <div className="document-source-block" key={index}>
           <p className="sample-note">{entry.ref.page ? "Page " + entry.ref.page + " · " : ""}
             {entry.reason === "unsupported-table" ? "Table structure wasn't recognized" : entry.reason === "unmatched-answer-key" ? "Answer-key reference couldn't be matched" : "Structure wasn't recognized"}</p>
-          <SourceText text={source.get(entry.ref.blockKey) ? documentBlockText(source.get(entry.ref.blockKey)!) : entry.text} />
+          <SourceText text={entry.text} />
         </div>)}
         {grouped.ungrouped.length > 5 && <nav className="review-navigation" aria-label="Ungrouped source navigation">
           <button type="button" disabled={ungroupedPage === 0} onClick={() => setUngroupedPage(ungroupedPage - 1)}>Previous ungrouped blocks</button>

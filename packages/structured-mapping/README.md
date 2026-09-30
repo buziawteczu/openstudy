@@ -168,9 +168,15 @@ Only `Correct answer: B / Answer: B` or an explicit Correct table cell selects a
 answer with a unique literal label. `Answer key` introduces exact-number entries
 such as `1. B`, or an explicit `Question/Number | Answer/Correct` table.
 Numbering is matched exactly, never fuzzily or by entry order. Multiple markers
-(even agreeing), duplicate question/key numbers, missing/unmatched numbers and
-unresolvable labels remain flagged/unresolved; malformed/unmatched keys stay
-visible in ungrouped content. Formatting never proves correctness.
+(even agreeing), duplicate question/key numbers, missing keys for a candidate
+and unresolvable labels remain flagged/unresolved. Orphan key numbers and
+malformed keys stay visible in ungrouped content without flagging unrelated
+candidates. Formatting never proves correctness.
+
+Known limitation: structural numbering and A/B/C choice patterns can work
+regardless of prose language, but explicit marker vocabulary such as
+`Question`, `Answer` / `Correct answer`, `Answer key` and `Explanation` is
+currently English-oriented. Multilingual markers need separate design.
 
 Evidence is a small enum with no confidence scores; review reasons include
 ambiguous boundaries/choices, duplicate numbers, key issues, PDF order,

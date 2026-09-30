@@ -186,7 +186,7 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
       current = start(unit, match[2]!, match[1]);
       if (!/\S/u.test(current.prompt) && units[i + 1] && !choice(units[i + 1]!.text)
         && !numbered(units[i + 1]!.text) && !questionHeading(units[i + 1]!.text)
-        && !answer(units[i + 1]!.text) && !isKeyHeading(units[i + 1]!.text)
+        && !answer(units[i + 1]!.text) && !explanation(units[i + 1]!.text) && !isKeyHeading(units[i + 1]!.text)
         && (units[i + 1]!.kind === "paragraph" || units[i + 1]!.kind === "page-text")) {
         current.prompt = units[i + 1]!.text; add(current, units[++i]!);
       }
@@ -224,7 +224,8 @@ export function extractDocumentQuestions(document: NormalizedDocument): Document
     if (group?.length === 1 && entries.length === 1) group[0]!.markers.push({ label: entries[0]!.label, refs: [entries[0]!.ref], key: true });
     else {
       for (const entry of entries) ungrouped.push({ ref: entry.ref, text: number + ". " + entry.label, reason: "unmatched-answer-key" });
-      for (const draft of group ?? drafts) draft.reviewReasons.push("unmatched-answer-key");
+      // An orphan key stays ungrouped; only candidates with this number are affected.
+      for (const draft of group ?? []) draft.reviewReasons.push("unmatched-answer-key");
     }
   }
   if (keyMode) for (const draft of drafts) {

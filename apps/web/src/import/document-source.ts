@@ -18,7 +18,19 @@ export function sourceContextText(block: DocumentBlock, refs: readonly SourceBlo
       const last = Number(match[2] ?? match[1]);
       for (let index = Math.max(0, first - 1); index <= Math.min(block.items.length - 1, last + 1); index++) indexes.add(index);
     }
-    if (indexes.size > 0) return block.items.filter((_, index) => indexes.has(index)).map((item) => item.text).join("\n");
+    if (indexes.size > 0) {
+      let text = "";
+      let previous: typeof block.items[number] | undefined;
+      let previousIndex = -1;
+      block.items.forEach((item, index) => {
+        if (!indexes.has(index)) return;
+        if (previous && (index !== previousIndex + 1 || previous.hasLineBreak || previous.transform[5] !== item.transform[5])) text += "\n";
+        text += item.text;
+        previous = item;
+        previousIndex = index;
+      });
+      return text;
+    }
   }
   return documentBlockText(block);
 }

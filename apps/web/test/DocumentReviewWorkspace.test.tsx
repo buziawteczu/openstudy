@@ -153,6 +153,25 @@ describe("document intent and question review", () => {
     await user.click(screen.getByRole("button", { name: "Validate reviewed questions" }));
     expect(screen.getByText("Review the ungrouped source content and acknowledge that it will not become questions.")).toBeInTheDocument();
   });
+  it("shows each ungrouped PDF line rather than repeating its whole page", async () => {
+    const user = userEvent.setup();
+    await user.upload(renderImport(), new File([pdfFixture([["Preface one", "Preface two", "1. Prompt", "A. First", "B. Second"]])], "exam.pdf"));
+    await screen.findByRole("heading", { name: "What are you uploading?" });
+    await user.click(screen.getByRole("radio", { name: /Questions or an existing test/ }));
+    await user.click(screen.getByRole("button", { name: "Continue with document" }));
+    await user.click(screen.getByText("Review ungrouped source content", { exact: true }));
+    expect([...document.querySelectorAll(".review-ungrouped pre")].map((element) => element.textContent))
+      .toEqual(["Preface one", "Preface two"]);
+  });
+  it("shows only the malformed answer-key table row as ungrouped", async () => {
+    const row = (texts: string[]) => "<w:tr>" + texts.map((text) => "<w:tc>" + paragraphXml(text) + "</w:tc>").join("") + "</w:tr>";
+    const { user } = await start(paragraphXml("1. Prompt") + paragraphXml("A. First") + paragraphXml("B. Second")
+      + paragraphXml("Answer key") + "<w:tbl>" + row(["Number", "Answer"]) + row(["not-a-number", "A"]) + "</w:tbl>");
+    await user.click(screen.getByText("Review ungrouped source content", { exact: true }));
+    expect([...document.querySelectorAll(".review-ungrouped pre")].map((element) => element.textContent))
+      .toContain("not-a-number\tA");
+    expect(document.querySelector(".review-ungrouped pre")?.textContent).not.toContain("Number\tAnswer");
+  });
   it("PDF source page context and ordering limitation are visible", async () => {
     const user = userEvent.setup();
     await user.upload(renderImport(), new File([pdfFixture([["1. Prompt", "A. First", "B. Second"]])], "exam.pdf"));

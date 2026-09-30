@@ -58,6 +58,14 @@ test("Question heading followed by paragraph and contiguous unlabeled list", () 
   assert.deepEqual(result.candidates[0]!.choices.map((choice) => choice.text), ["Green", "Red"]);
   assert.equal(result.candidates[0]!.correctChoiceId, undefined, "unresolved automatic list labels are not invented");
 });
+test("blank question heading does not consume an explanation as its prompt", () => {
+  const candidate = group([p("Question 1", "heading"), p("Explanation: Because the source says so."),
+    p("A. First"), p("B. Second"), p("Answer: A")]).candidates[0]!;
+  assert.equal(candidate.prompt, "");
+  assert.equal(candidate.explanation, "Because the source says so.");
+  assert.equal(candidate.correctChoiceId, candidate.choices[0]!.temporaryId);
+  assert.equal(inspectCandidate(candidate).status, "incomplete");
+});
 test("plain prompt followed by actual list is supported without question-mark semantics", () => {
   const result = group([p("Select an item"), p("x", "list-item"), p("y", "list-item")]);
   assert.equal(result.candidates.length, 1);
@@ -126,6 +134,35 @@ test("answer key associates by number, not order", () => {
   assert.equal(result.candidates[1]!.correctChoiceId, result.candidates[1]!.choices[1]!.temporaryId);
   assert.ok(result.candidates[0]!.evidence.includes("explicit-answer-key-match"));
   assert.ok(result.candidates[1]!.sourceBlockRefs.some((ref) => ref.locator === firstKey.locator));
+});
+test("extra answer-key number does not contaminate correctly matched candidates", () => {
+  const result = group([p("1. Question one"), p("A. x"), p("B. y"),
+    p("2. Question two"), p("A. a"), p("B. b"),
+    p("Answer key", "heading"), p("1. A"), p("2. B"), p("99. A")]);
+  assert.equal(result.candidates.length, 2);
+  assert.equal(result.candidates[0]!.correctChoiceId, result.candidates[0]!.choices[0]!.temporaryId);
+  assert.equal(result.candidates[1]!.correctChoiceId, result.candidates[1]!.choices[1]!.temporaryId);
+  assert.ok(result.candidates.every((candidate) => candidate.evidence.includes("explicit-answer-key-match")));
+  assert.ok(result.candidates.every((candidate) => !candidate.reviewReasons.includes("unmatched-answer-key")));
+});
+test("duplicate key entries flag only the candidate with that number", () => {
+  const result = group([p("1. Question one"), p("A. x"), p("B. y"),
+    p("2. Question two"), p("A. a"), p("B. b"),
+    p("Answer key", "heading"), p("1. A"), p("1. B"), p("2. B")]);
+  assert.equal(result.candidates[0]!.correctChoiceId, undefined);
+  assert.ok(result.candidates[0]!.reviewReasons.includes("unmatched-answer-key"));
+  assert.equal(result.candidates[1]!.correctChoiceId, result.candidates[1]!.choices[1]!.temporaryId);
+  assert.ok(!result.candidates[1]!.reviewReasons.includes("unmatched-answer-key"));
+});
+test("orphan answer-key entry remains explicit ungrouped source content", () => {
+  const extraKey = p("99. A");
+  const result = group([p("1. Question one"), p("A. x"), p("B. y"),
+    p("Answer key", "heading"), p("1. A"), extraKey]);
+  assert.deepEqual(result.ungrouped, [{
+    ref: { blockKey: extraKey.key, locator: extraKey.locator },
+    text: "99. A", reason: "unmatched-answer-key",
+  }]);
+  assert.ok(!result.candidates[0]!.reviewReasons.includes("unmatched-answer-key"));
 });
 for (const entries of [["1. A", "1. B"], ["9. A"], ["malformed entry"]] as const) test("ambiguous/unmatched answer key: " + entries.join(", "), () => {
   const result = group([p("1. Prompt"), p("A. x"), p("B. y"), p("Answer key"), ...entries.map((entry) => p(entry))]);

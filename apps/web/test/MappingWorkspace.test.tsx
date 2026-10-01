@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { App } from "../src/app/App.js";
 import { createMappingIdentity, defaultStudySetTitle } from "../src/import/mapping-session.js";
 import { zipFixture } from "./zip-fixture.js";
+import { studySetStorage } from "../src/storage/study-sets.js";
 
 const good = { q: "Which city?", a: ["Lisbon", "Paris", "London"], answer: 1, topic: "Geography", why: "Capital cities.", sourceId: "upstream-8" };
 function renderImport() {
@@ -104,7 +105,7 @@ describe("structured mapping workflow", () => {
     expect(preview()).toHaveTextContent("Index 8 is outside");
     expect(preview()).toHaveTextContent("Question text unavailable");
   });
-  it("creates only an in-memory candidate after every selected record passes", async () => {
+  it("offers saving only after every selected record passes", async () => {
     const storage = vi.spyOn(Storage.prototype, "setItem");
     try {
       const { user } = await upload([good, good]);
@@ -120,12 +121,33 @@ describe("structured mapping workflow", () => {
       const result = screen.getByRole("region", { name: "Study set ready" });
       expect(result).toHaveTextContent("2 records inspected · 2 ready · 0 need attention");
       expect(result).toHaveTextContent("My revision · 2 questions · 1 category");
-      expect(result).toHaveTextContent("Leaving or reloading loses it");
+      expect(result).toHaveTextContent("before saving loses this import");
       expect(storage).not.toHaveBeenCalled();
-      expect(screen.queryByRole("button", { name: /Save/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Save to library" })).toBeInTheDocument();
       await user.click(screen.getByRole("link", { name: "Back to library" }));
-      expect(screen.getByRole("region", { name: "No study sets yet" })).toBeInTheDocument();
+      expect(await screen.findByRole("region", { name: "No study sets yet" })).toBeInTheDocument();
     } finally { storage.mockRestore(); }
+  });
+  it("keeps a ready candidate on save failure and reaches stored details on retry", async () => {
+    const save = studySetStorage.saveStudySet.bind(studySetStorage);
+    const spy = vi.spyOn(studySetStorage, "saveStudySet")
+      .mockResolvedValueOnce({ success: false, error: "storage-unavailable" })
+      .mockImplementation(save);
+    try {
+      const { user } = await upload();
+      await map(user);
+      await validate(user);
+      await user.click(screen.getByRole("button", { name: "Save to library" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent("couldn't save");
+      expect(screen.getByRole("heading", { name: "Study set ready" })).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save to library" }));
+      expect(await screen.findByText("Saved on this device")).toBeInTheDocument();
+      expect(spy).toHaveBeenCalledTimes(2);
+    } finally {
+      spy.mockRestore();
+      const listed = await studySetStorage.listStudySets();
+      if (listed.success) for (const entry of listed.value) await studySetStorage.deleteStudySet(entry.id);
+    }
   });
   it("checks records beyond the live preview and supports on-demand issue inspection", async () => {
     const { user } = await upload([good, good, good, { ...good, answer: 7 }]);

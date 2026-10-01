@@ -23,7 +23,7 @@ describe("Import screen", () => {
     expect(screen.getByText("questions.json")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: "Back to library" }));
-    expect(screen.getByRole("region", { name: "No study sets yet" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "No study sets yet" })).toBeInTheDocument();
   });
   it("reports malformed JSON in an understandable alert", async () => {
     const user = userEvent.setup();

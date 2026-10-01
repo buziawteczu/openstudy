@@ -7,6 +7,7 @@ import {
 } from "@openstudy/mapping";
 import type { StructuredIngestionSummary } from "../import/ingest-file.js";
 import { createMappingIdentity, defaultStudySetTitle } from "../import/mapping-session.js";
+import { SaveStudySetButton } from "./SaveStudySetButton.js";
 
 type CollectionOption = { key: string; source: SourceDescriptor; collection: RecordCollection; label: string };
 type Selections = Record<MappingTarget, string>;
@@ -216,7 +217,8 @@ function SelectedMapping({ option, defaultTitle }: { option: CollectionOption; d
         <p className="validation-counts">{validation.inspectedCount} {validation.inspectedCount === 1 ? "record" : "records"} inspected · {validation.validCount} ready · {validation.invalidCount} {validation.invalidCount === 1 ? "needs" : "need"} attention</p>
         {validation.status === "ready"
           ? <><p>{validation.candidate.title} · {validation.candidate.questions.length} {validation.candidate.questions.length === 1 ? "question" : "questions"} · {validation.candidate.categories.length} {validation.candidate.categories.length === 1 ? "category" : "categories"}</p>
-            <p className="section-help">Your study set exists only in this import session. Leaving or reloading loses it. Nothing has been saved to the library.</p></>
+            <p className="section-help">Ready to save on this device. Leaving or reloading before saving loses this import.</p>
+            <SaveStudySetButton studySet={validation.candidate} /></>
           : <p className="section-help">No complete study set has been created. Adjust the mapping, or correct the original file and upload it again.</p>}
       </div>
       {globalIssues.length > 0 && <ul id="validation-global-issues" className="preview-problems">{globalIssues.map((entry, index) =>

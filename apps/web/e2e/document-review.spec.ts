@@ -9,7 +9,7 @@ const questions = [
 const body = questions.map(paragraphXml).join("");
 const confirmName = /Confirm this question/;
 function detailed(project: string) { test.skip(!["mobile-320", "desktop"].includes(project), "Detailed workflows on mobile and desktop; separate smoke test covers all widths."); }
-test("DOCX correction, source comparison and explicit exclusion reach a ready in-memory set", async ({ page }, testInfo) => {
+test("DOCX correction, source comparison and explicit exclusion reach a ready set", async ({ page }, testInfo) => {
   detailed(testInfo.project.name);
   await page.goto("/import");
   const requests: string[] = [];
@@ -33,7 +33,8 @@ test("DOCX correction, source comparison and explicit exclusion reach a ready in
   await page.getByRole("button", { name: "Validate reviewed questions" }).click();
   await expect(page.getByRole("heading", { name: "Study set ready" })).toBeFocused();
   await expect(page.locator(".validation-result")).toContainText("3 candidates reviewed · 2 included · 1 excluded · 0 unresolved");
-  await expect(page.locator(".validation-result")).toContainText("Nothing has been saved");
+  await expect(page.locator(".validation-result")).toContainText("before saving loses this import");
+  await expect(page.getByRole("button", { name: "Save to library" })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("docx-review-ready.png"), fullPage: true });
   expect(requests).toEqual([]);
   await page.getByRole("link", { name: "Back to library" }).click();

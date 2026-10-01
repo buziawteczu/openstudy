@@ -29,9 +29,9 @@ describe("OpenStudy application shell", () => {
     expect(document.title).toBe("Library | OpenStudy");
   });
 
-  it("shows an honest Library empty state and import link", () => {
+  it("shows an honest Library empty state and import link", async () => {
     renderApp();
-    const emptyState = screen.getByRole("region", { name: "No study sets yet" });
+    const emptyState = await screen.findByRole("region", { name: "No study sets yet" });
     expect(within(emptyState).getByText(/Bring your own study material/)).toBeInTheDocument();
     expect(within(emptyState).getByRole("link", { name: "Import study set" })).toHaveAttribute("href", "/import");
   });
@@ -39,7 +39,7 @@ describe("OpenStudy application shell", () => {
   it("navigates to Import and focuses its heading", async () => {
     const user = userEvent.setup();
     renderApp();
-    await user.click(screen.getByRole("link", { name: "Import study set" }));
+    await user.click(await screen.findByRole("link", { name: "Import study set" }));
     expect(screen.getByRole("heading", { level: 1, name: "Import study material" })).toHaveFocus();
     expect(document.title).toBe("Import | OpenStudy");
     expect(screen.queryByText("No study sets yet")).not.toBeInTheDocument();
@@ -74,6 +74,7 @@ describe("OpenStudy application shell", () => {
   it("supports keyboard navigation with a skip link and native links", async () => {
     const user = userEvent.setup();
     renderApp();
+    await screen.findByRole("link", { name: "Import study set" });
     await user.tab();
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveFocus();
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute("href", "#main-content");

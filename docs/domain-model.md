@@ -35,6 +35,10 @@ Changing progress must not mutate canonical questions. Generating a learning pla
 
 A StudySet is the canonical aggregate accepted by validation and consumed by study use cases.
 
+The local Library persists this aggregate under its canonical `id`, with a separate
+derived summary for list rendering. It does not persist source file bytes, import
+workflow state, or UserProgress. Duplicate titles are valid.
+
 Conceptual properties include:
 
 - `schemaVersion`: version of the canonical file/data format.

@@ -104,6 +104,6 @@ describe("document Import screen", () => {
     await user.upload(renderImport(), new File([await docxFixture()], "exam.docx"));
     await screen.findByText("Document extracted");
     await user.click(screen.getByRole("link", { name: "Back to library" }));
-    expect(screen.getByRole("region", { name: "No study sets yet" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "No study sets yet" })).toBeInTheDocument();
   });
 });

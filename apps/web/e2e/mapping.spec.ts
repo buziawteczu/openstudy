@@ -19,7 +19,7 @@ async function noOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 }
 
-test("JSON collection selection, explicit mapping, validation and session-only success", async ({ page }, testInfo) => {
+test("JSON collection selection, explicit mapping, validation and ready state", async ({ page }, testInfo) => {
   test.skip(!["mobile-320", "desktop"].includes(testInfo.project.name), "Detailed flows run on phone and desktop; responsive smoke covers all widths.");
   await page.goto("/import");
   const requests: string[] = [];
@@ -55,9 +55,9 @@ test("JSON collection selection, explicit mapping, validation and session-only s
   const ready = page.getByRole("region", { name: "Study set ready" });
   await expect(ready).toContainText("2 records inspected · 2 ready · 0 need attention");
   await expect(ready).toContainText("My geography · 2 questions · 1 category");
-  await expect(ready).toContainText("Leaving or reloading loses it");
+  await expect(ready).toContainText("before saving loses this import");
   await expect(page.getByRole("heading", { name: "Study set ready" })).toBeFocused();
-  await expect(page.getByRole("button", { name: /Save/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save to library" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.length)).toBe(0);
   await noOverflow(page);
   await page.screenshot({ path: testInfo.outputPath("mapping-ready.png"), fullPage: true });

@@ -1,11 +1,11 @@
 # OpenStudy
 
 A local-first, mobile-friendly study tool. The current application foundation
-contains an empty StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
+contains a local StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
 explicit structured mapping/validation, document-question review, and a not-found page.
-JSON/ZIP field mapping and DOCX/text-PDF existing-question review stop at an
-all-valid canonical candidate in memory. Document notes stop at extracted content:
-creating questions from notes is not supported. Persistence and study modes
+JSON/ZIP field mapping and DOCX/text-PDF existing-question review produce an
+all-valid canonical candidate that can be saved to IndexedDB. Document notes stop
+at extracted content: creating questions from notes is not supported. Study modes
 are not implemented yet. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
@@ -54,14 +54,16 @@ npm run test:e2e
 The suite starts and stops its own preview server on port 4173. It checks
 navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion,
 structured mapping/validation/issue inspection, existing-question document review,
-notes intent, inline corrections/exclusion, reset/errors,
+notes intent, inline corrections/exclusion, local Library save/reload/delete, reset/errors,
 200% text scaling, and layout at widths
 320, 375, 390, 768, 1440, and 1920px. Local visual captures and failure traces are written to
 the ignored `apps/web/test-results/` directory.
 
 Supported inputs are DOCX, PDF with selectable text, JSON, and ZIP containing
 JSON. Scanned/image-only PDFs, OCR and legacy DOC are unsupported. Processing
-stays on-device in memory. Deterministic document grouping recognizes narrow
+stays on-device. Only a validated canonical StudySet and its derived Library
+summary are saved; raw files, source rows, extraction blocks and review state are
+not retained. Deterministic document grouping recognizes narrow
 existing-question structures; users check source wording and correct ambiguity.
 No AI, semantic answer inference or generated questions. Extraction limitations
 and safety budgets are in the import pipeline.
@@ -80,7 +82,7 @@ Only an active structured mapping workflow widens the canvas to `78rem` (about
 `68rem`; narrower screens use an ordered vertical flow. Document question review
 widens to `72rem`, with source/edit columns above `68rem` and a sequential mobile
 editor with expandable original source. The Library, intent selection and notes
-extraction retain the focused shell.
+extraction, saved Library and StudySet details retain the focused shell.
 
 Tailwind CSS v4 is integrated through the official Vite plugin. Its CSS-first
 `@theme` in `apps/web/src/styles/global.css` defines semantic colors, typography,
@@ -90,5 +92,5 @@ live in the stylesheet's component and base layers. Source scanning is scoped
 to the frontend `src` directory, independent of the workspace command location.
 No separate Tailwind JavaScript or PostCSS configuration is needed.
 
-History routing uses `/`, `/import`, and a fallback for unknown paths. A future
+History routing uses `/`, `/import`, `/study-sets/:id`, and a fallback for unknown paths. A future
 static host must serve `index.html` for application routes so direct links work.

@@ -8,8 +8,9 @@ The implemented local inputs are JSON, ZIP containing JSON, DOCX, and PDF with
 selectable text. JSON/ZIP record collections now support explicit mapping and
 complete canonical validation into an in-memory StudySet candidate. DOCX/text-PDF
 existing questions now support deterministic grouping, review/correction and the
-same final canonical boundary. Notes stop at extracted content. Persistence,
-study and generating questions from notes remain future work.
+same final canonical boundary. Both ready candidates can be explicitly saved to
+the local Library. Notes stop at extracted content. Study and generating questions
+from notes remain future work.
 
 ## Implemented neutral boundary (`@openstudy/import-core`)
 
@@ -26,7 +27,14 @@ separate `documents/` modules, not in parsers, React or schema.
 | Raw source | User file/binary/archive; ingestion/extraction owns reading and safety. No raw-file API in import-core. |
 | Normalized structured source | `NormalizedStructuredSource`: upstream `SourceDescriptor` plus nested serializable `SourceValue`; already read/extracted, not canonical content. |
 | Mapping candidate | `MappingCandidate`: source descriptor, adapter ID, and explicit `RecordCollection[]`; source field names/values remain opaque data. |
-| Canonical candidate / StudySet | `@openstudy/mapping` explicitly transforms the chosen structured collection and calls canonical validation; only an all-valid candidate exists in memory. Persistence and study remain deferred. |
+| Canonical candidate / StudySet | `@openstudy/mapping` explicitly transforms the chosen structured collection and calls canonical validation; only an all-valid candidate can be saved to the local Library. Study remains deferred. |
+
+The Save action revalidates the complete StudySet, then writes it and a derived
+summary in one IndexedDB transaction. The Library lists summaries by title and
+opens one canonical aggregate by its opaque ID. Opening uses the existing schema
+migration and final validation path; reads never automatically rewrite saved
+data. Raw files, structured rows, extracted document blocks, mapping state and
+review decisions remain session-only. See [storage and privacy](storage-and-privacy.md).
 
 The structured path is therefore:
 
@@ -122,7 +130,7 @@ the entire attempt rather than silently returning a partial import.
 JSON/ZIP inspection -> explicit collection selection -> manual field mapping
   -> explicit answer interpretation -> first-three-record preview
   -> Validate all records -> contextual issues OR all-valid canonical candidate
-  -> STOP (in memory; no save, Library entry, persistence, or study)
+  -> explicit Save to library -> IndexedDB StudySet + summary (or remain in memory)
 ```
 
 Ambiguous collections have no default selection; a sole collection may be
@@ -286,10 +294,10 @@ remain unresolved. No invalid record is silently dropped.
 
 ### 6. Commit
 
-This stage is not implemented. Future persistence happens only after explicit
-confirmation and creates a new StudySet or an explicit StudySet revision.
-Import previews and validation failures must not partially mutate durable
-content or progress.
+Explicit Save to library validates the complete canonical StudySet again and
+atomically writes that aggregate and a derived Library summary to IndexedDB.
+Import previews and validation failures do not mutate durable content. Adding
+material to an existing set and revision increments remain future work.
 
 ## ZIP safety
 
@@ -434,7 +442,7 @@ explicit document intent
         |
         v
 questions/tests -> deterministic candidates -> review/correction
-                -> canonical candidate -> schema validation -> STOP in memory
+                -> canonical candidate -> schema validation -> explicit local save
 notes -> extracted content only -> STOP (generation is a future feature)
 ```
 
@@ -656,8 +664,9 @@ Explicit final validation blocks unresolved included candidates, unacknowledged
 ungrouped content, blank metadata and zero included questions. Exclusions are
 counted and retained in the session, not silently dropped. Only a complete
 QuestionSchema/StudySetSchema-valid set is returned, never a partial candidate.
-The summary shows reviewed/included/excluded/unresolved; `Study set ready` means
-in memory only.
+The summary shows reviewed/included/excluded/unresolved; `Study set ready` offers
+an explicit Save to library action. Until the save transaction succeeds, it is
+still in memory only.
 
 Canonical IDs share structured mapping's ID formatter and browser 128-bit CSPRNG
 namespace, obtained only at the final document boundary. IDs use original candidate/
@@ -667,7 +676,7 @@ existing `{sourceId, locator}` entries for contributing DOCX blocks/rows/cells a
 PDF page/item ranges, including answer-key evidence. Detailed document structures
 and temporary IDs stay upstream; opaque locators may change with parser/source
 versions. No schema changes, AI, semantic correctness, notes generation,
-deduplication, persistence, IndexedDB/Dexie, Library entries or study modes.
+deduplication or study modes.
 
 Core tests cover DOCX/PDF grouping, explicit keys/tables, ambiguity/determinism/
 fidelity/provenance and reducer/final validation invariants. Component tests cover

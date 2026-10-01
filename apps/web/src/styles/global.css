@@ -82,6 +82,15 @@
     @apply mb-3 text-xs leading-[1.6] font-semibold tracking-[0.12em] text-muted uppercase;
   }
 
+  .library-list { @apply mb-6 grid gap-3; }
+  .library-card { @apply flex min-h-[120px] flex-col items-start gap-1 rounded-surface border border-border bg-surface p-5 text-text no-underline; overflow-wrap: anywhere; }
+  .library-card:hover { border-color: var(--color-accent); }
+  .library-card-title { @apply text-lg font-semibold; }
+  .library-card-open { @apply mt-2 text-small font-semibold text-accent; }
+  .study-set-facts { @apply mt-8 grid grid-cols-2 gap-4 rounded-surface border border-border bg-surface p-5; }
+  .study-set-facts dt { @apply text-small text-muted; }
+  .study-set-facts dd { @apply text-xl font-semibold; }
+
   .action,
   .back-link {
     @apply mt-6 inline-flex min-h-[48px] max-w-full items-center justify-center gap-3 rounded-small px-6 py-3 text-small leading-[1.5] font-semibold;

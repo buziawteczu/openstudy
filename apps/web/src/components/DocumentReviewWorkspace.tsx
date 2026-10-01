@@ -8,6 +8,7 @@ import {
 import type { DocumentIngestionSummary } from "../import/ingest-file.js";
 import { createMappingIdentity, defaultStudySetTitle } from "../import/mapping-session.js";
 import { sourceContextText } from "../import/document-source.js";
+import { SaveStudySetButton } from "./SaveStudySetButton.js";
 
 function sourceIndex(extracted: ExtractedDocument): Map<string, DocumentBlock> {
   const result = new Map<string, DocumentBlock>();
@@ -250,7 +251,8 @@ function DocumentReviewWorkspace({ summary, grouped }: { summary: DocumentIngest
         <h2 id="document-final-title" ref={finalHeading} tabIndex={-1}>{result.status === "ready" ? "Study set ready" : "Study set needs attention"}</h2>
         <p>{counts.reviewed} candidates reviewed · {counts.included} included · {counts.excluded} excluded · {counts.unresolved} unresolved</p>
         {result.status === "ready" ? <><p>{result.candidate.title} · {result.candidate.questions.length} questions</p>
-          <p className="section-help">Ready in memory only. Leaving or reloading discards it. Nothing has been saved or added to your library.</p></>
+          <p className="section-help">Ready to save on this device. Leaving or reloading before saving loses this import.</p>
+          <SaveStudySetButton studySet={result.candidate} /></>
           : <ul className="preview-problems" id="document-final-errors">{result.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>}
       </div>
     </section>}

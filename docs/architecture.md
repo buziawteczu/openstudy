@@ -89,7 +89,7 @@ explicit intent: existing questions/tests OR notes
     |
     v
 existing questions -> deterministic candidates -> human review/correction
-                   -> schema-validated StudySet candidate -> STOP in memory
+                   -> schema-validated StudySet candidate -> explicit save to local Library
 notes -> extracted content only (future generation, not implemented)
 ```
 
@@ -97,7 +97,7 @@ notes -> extracted content only (future generation, not implemented)
 
 ## Canonical boundary
 
-All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. `@openstudy/mapping` (in `packages/structured-mapping`) consumes neutral structured records or normalized documents and the canonical schema. Its separate `documents/` modules own conservative existing-question grouping, temporary candidates, pure review transformations and final validation. The structured transformer is unchanged apart from extracting its ID formatter into a shared utility. React coordinates intent, a scoped reducer, navigation and presentation. Both implemented question flows stop at an all-valid candidate in memory, not persistence. See [the import pipeline](import-pipeline.md).
+All import paths converge on the same StudySet schema before persistence and study. The schema is implemented in `@openstudy/schema`. `@openstudy/import-core` owns upstream structured source/collection and neutral document contracts, deterministic inspection and normalization; it does not produce StudySets or depend on the schema. `@openstudy/mapping` (in `packages/structured-mapping`) consumes neutral structured records or normalized documents and the canonical schema. Its separate `documents/` modules own conservative existing-question grouping, temporary candidates, pure review transformations and final validation. The structured transformer is unchanged apart from extracting its ID formatter into a shared utility. React coordinates intent, a scoped reducer, navigation and presentation. Both implemented question flows offer explicit saving of an all-valid canonical candidate through the web storage boundary. See [the import pipeline](import-pipeline.md).
 
 This extends the existing focused mapping boundary instead of creating another
 workspace: neutral reviewed content becoming canonical content is already its
@@ -150,7 +150,7 @@ That is a likely destination, not scaffolding required before the first implemen
 
 ## Local-first V1
 
-V1 has no account, authentication, backend database, or cloud storage. StudySets, source metadata needed after import, and UserProgress remain on-device. IndexedDB is the likely storage mechanism, potentially through Dexie, but the choice of library belongs to implementation planning.
+V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets and their source metadata are saved on-device in IndexedDB; UserProgress remains a separate future domain. The web app uses a small native IndexedDB boundary without a storage framework.
 
 Local-first means:
 

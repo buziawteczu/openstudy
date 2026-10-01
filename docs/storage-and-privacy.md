@@ -15,7 +15,15 @@ This is both a product choice and an architectural boundary. Local-first reduces
 
 ## Local persistence direction
 
-IndexedDB is the likely store because StudySets and progress exceed the fit of simple key-value browser storage and need structured, transactional updates. Dexie may provide a practical wrapper, but PR 0 selects neither a dependency nor a database schema.
+IndexedDB now stores canonical StudySets through a small web storage module.
+Database `openstudy-library` uses layout version `1`, with `studySets` and
+`libraryEntries` stores keyed by the canonical StudySet ID. The layout version
+is independent of canonical `StudySet.schemaVersion` (`1.0.0`). Save and delete
+update both stores in one transaction; list reads summaries only. Entries sort
+by title using code-unit order, then ID for ties. Reads use the existing schema
+migration and final validation path without automatically writing back migrated
+data. The original JSON/ZIP/DOCX/PDF files, extracted blocks, mapping and review
+sessions, and UserProgress are not stored. There is no localStorage fallback.
 
 Persistence should keep separable records for:
 
@@ -45,13 +53,17 @@ The minimum backup/restore experience required for V1 remains a product question
 
 V1 should read user-selected JSON and ZIP data locally. Source data should not leave the device for essential processing.
 
-Retention needs an explicit policy:
+The current local Library retains only canonical StudySet content and its summary.
+Raw source files and extraction/review state are discarded after the import
+session. A future feature would need a separate retention decision to keep them.
+
+Broader retention choices include:
 
 - keeping only canonical content minimizes storage and exposure but limits reprocessing and provenance detail;
 - retaining original files enables future remapping or auditing but increases storage, privacy, and lifecycle obligations;
 - retaining a digest and locator metadata without the full source may be a useful middle ground.
 
-PR 0 does not decide whether original JSON/ZIP files or future SourceDocuments persist. The import UI should eventually disclose the choice rather than retain source bytes invisibly.
+The import UI does not retain source bytes invisibly.
 
 Temporary buffers and failed imports should be released after the workflow unless needed for a user-visible retry. Debug logs must not casually include full questions, source documents, answer keys, or filenames that may reveal sensitive subjects.
 

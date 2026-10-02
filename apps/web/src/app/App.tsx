@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router";
 
 import { ImportPage } from "../pages/ImportPage.js";
 import { AddMaterialPage } from "../pages/AddMaterialPage.js";
+import { LearnPage } from "../pages/LearnPage.js";
 import { LibraryPage } from "../pages/LibraryPage.js";
 import { NotFoundPage } from "../pages/NotFoundPage.js";
 import { StudySetPage } from "../pages/StudySetPage.js";
@@ -15,6 +16,7 @@ export function App() {
         <Route path="import" element={<ImportPage />} />
         <Route path="study-sets/:id" element={<StudySetPage />} />
         <Route path="study-sets/:id/add-material" element={<AddMaterialPage />} />
+        <Route path="study-sets/:id/learn" element={<LearnPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>

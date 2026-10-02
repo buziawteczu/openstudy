@@ -10,6 +10,7 @@ export default defineConfig({
       "@openstudy/import-core": fileURLToPath(new URL("../../packages/import-core/src/index.ts", import.meta.url)),
       "@openstudy/mapping": fileURLToPath(new URL("../../packages/structured-mapping/src/index.ts", import.meta.url)),
       "@openstudy/schema": fileURLToPath(new URL("../../packages/schema/src/index.ts", import.meta.url)),
+      "@openstudy/study": fileURLToPath(new URL("../../packages/study/src/index.ts", import.meta.url)),
     },
   },
   plugins: [react(), tailwindcss()],

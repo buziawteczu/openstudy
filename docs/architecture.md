@@ -104,7 +104,7 @@ workspace: neutral reviewed content becoming canonical content is already its
 responsibility. Import-core remains schema/semantic-free, document parsers stay
 in the web layer, and document rules do not enter canonical schema 1.0.0.
 
-The canonical model makes the question type explicit. V1 implements only single-choice behavior. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
+The canonical model makes the question type explicit. Learn now implements single-choice behavior in `@openstudy/study`: pure session transitions consume canonical Question/Choice IDs and yield checked-answer events for progress updates. The web adapter persists UserProgress separately. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 
 The canonical boundary includes validation results and schema-version handling, but it does not erase provenance. Schema 1.0.0 keeps a minimal provenance array on each Question: a canonical source reference plus optional source-defined external ID and opaque source-local locator. Detailed source and document metadata remains upstream, and the study engine never interprets the locator.
 
@@ -150,7 +150,7 @@ That is a likely destination, not scaffolding required before the first implemen
 
 ## Local-first V1
 
-V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets and their source metadata are saved on-device in IndexedDB; UserProgress remains a separate future domain. The web app uses a small native IndexedDB boundary without a storage framework.
+V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets, source metadata, and separate per-question UserProgress are saved on-device in IndexedDB. The active Learn session is memory-only. The web app uses a small native IndexedDB boundary without a storage framework.
 
 Local-first means:
 

@@ -2,13 +2,12 @@
 
 A local-first, mobile-friendly study tool. The current application foundation
 contains a local StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
-explicit structured mapping/validation, document-question review, and a not-found page.
+explicit structured mapping/validation, document-question review, Learn mode, and a not-found page.
 JSON/ZIP field mapping and DOCX/text-PDF existing-question review produce an
 all-valid canonical candidate that can be saved to IndexedDB. Document notes stop
 at extracted content: creating questions from notes is not supported. A saved
 StudySet can also receive new material through an exact-match merge preview and
-an explicit update. Study modes
-are not implemented yet. See the
+an explicit update. Flashcards and Test are not implemented yet. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
 ## Repository
@@ -17,6 +16,7 @@ are not implemented yet. See the
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
 - `packages/import-core`: neutral structured/document contracts, record-array discovery, document normalization, and inspection; no file APIs or canonical mapping.
 - `packages/structured-mapping`: `@openstudy/mapping`, pure explicit field mapping, document-question grouping/review transformations, issues, and canonical candidate validation.
+- `packages/study`: `@openstudy/study`, pure Learn session transitions and validated UserProgress rules.
 - `docs`: product and architecture contracts.
 
 ## Development
@@ -56,16 +56,16 @@ npm run test:e2e
 The suite starts and stops its own preview server on port 4173. It checks
 navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion,
 structured mapping/validation/issue inspection, existing-question document review,
-notes intent, inline corrections/exclusion, local Library save/reload/delete, reset/errors,
-200% text scaling, and layout at widths
+notes intent, inline corrections/exclusion, local Library save/reload/delete, Learn answer/retry,
+progress persistence and cleanup, reset/errors, 200% text scaling, and layout at widths
 320, 375, 390, 768, 1440, and 1920px. Local visual captures and failure traces are written to
 the ignored `apps/web/test-results/` directory.
 
 Supported inputs are DOCX, PDF with selectable text, JSON, and ZIP containing
 JSON. Scanned/image-only PDFs, OCR and legacy DOC are unsupported. Processing
-stays on-device. Only a validated canonical StudySet and its derived Library
-summary are saved; raw files, source rows, extraction blocks and review state are
-not retained. Deterministic document grouping recognizes narrow
+stays on-device. A validated canonical StudySet, its Library summary, and separate
+per-question UserProgress are saved. Active Learn sessions, raw files, source rows,
+extraction blocks and review state are not retained. Deterministic document grouping recognizes narrow
 existing-question structures; users check source wording and correct ambiguity.
 No AI, semantic answer inference or generated questions. Extraction limitations
 and safety budgets are in the import pipeline.
@@ -94,5 +94,5 @@ live in the stylesheet's component and base layers. Source scanning is scoped
 to the frontend `src` directory, independent of the workspace command location.
 No separate Tailwind JavaScript or PostCSS configuration is needed.
 
-History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, and a fallback for unknown paths. A future
+History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, `/study-sets/:id/learn`, and a fallback for unknown paths. A future
 static host must serve `index.html` for application routes so direct links work.

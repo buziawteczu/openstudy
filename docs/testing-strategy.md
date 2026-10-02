@@ -4,7 +4,9 @@
 
 Testing should protect the open data contract, deterministic behavior, progress integrity, and critical user workflows. It should not duplicate every assertion at every layer.
 
-The strategy is planned here; PR 0 adds no test framework, fixtures, or application code.
+The implemented suites now cover the canonical schema, import/review, Add Material,
+Learn transitions, IndexedDB layout upgrade and progress integrity, plus focused
+browser flows. The remaining items below describe broader V1 goals.
 
 ## Unit tests
 

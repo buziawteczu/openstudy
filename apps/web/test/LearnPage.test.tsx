@@ -136,6 +136,24 @@ describe("Learn route", () => {
     });
   });
 
+  it.each([1, 2])("keeps correct feedback visible after a double-click in a %i-question session", async (count) => {
+    const set = fixture();
+    expect((await studySetStorage.saveStudySet(set)).success).toBe(true);
+    const user = userEvent.setup();
+    renderAt();
+    const questions = await screen.findByLabelText("Questions");
+    await user.clear(questions);
+    await user.type(questions, String(count));
+    await user.click(screen.getByRole("button", { name: "Start learning" }));
+    await user.click(screen.getByRole("radio", { name: "Lisbon" }));
+    await user.dblClick(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.getByRole("heading", { name: "Capital of Portugal?" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Correct." })).toBeVisible();
+    expect(screen.getByText("Lisbon is the capital.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("heading", { name: count === 1 ? "Session complete" : "Capital of the USA?" })).toBeVisible();
+  });
+
   it("warns on progress write failure but lets the learner continue", async () => {
     expect((await studySetStorage.saveStudySet(fixture())).success).toBe(true);
     vi.spyOn(userProgressStorage, "saveQuestionProgress").mockResolvedValue({ success: false, error: "write-failed" });

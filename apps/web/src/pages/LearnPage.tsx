@@ -198,7 +198,10 @@ function LearnExperience({ studySet, initialProgress, focusHeading }: { studySet
           {question.explanation && <p className="mt-3 [overflow-wrap:anywhere]">{question.explanation}</p>}
         </>}
       </div>
-      {session.resolved ? <button type="button" className="action" onClick={continueSession}>Continue</button>
+      {session.resolved ? <button type="button" className="action" onClick={(event) => {
+        // The button is reused after Check answer; ignore the rest of that click sequence.
+        if (event.detail <= 1) continueSession();
+      }}>Continue</button>
         : <button type="button" className="action" disabled={!session.selectedChoiceId} onClick={check}>Check answer</button>}
     </section> : <p role="alert">This question is no longer available. Return to the study set.</p>}
     {warning && <p role="alert" className="mt-6 text-small text-danger">Your learning progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}

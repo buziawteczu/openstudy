@@ -103,6 +103,27 @@ test("Learn retries without revealing the answer, completes, persists progress a
   expect(await readProgress(page)).toEqual([]);
 });
 
+test("double-clicking Check answer leaves feedback visible until a separate Continue activation", async ({ page }, testInfo) => {
+  test.skip(!["mobile-320", "desktop"].includes(testInfo.project.name));
+  await seed(page);
+  await page.getByRole("link", { name: "Learn" }).click();
+  await page.getByRole("button", { name: "Start learning" }).click();
+  await page.getByRole("radio", { name: "Lisbon" }).check();
+  await page.getByRole("button", { name: "Check answer" }).dblclick();
+  await expect(page.getByRole("heading", { name: "Capital of Portugal?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Correct." })).toBeVisible();
+  await expect(page.getByText("Lisbon is the capital.")).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("radio", { name: "Paris" }).check();
+  await page.getByRole("button", { name: "Check answer" }).dblclick();
+  await expect(page.getByRole("heading", { name: "Capital of France?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Correct." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Session complete" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Continue" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Session complete" })).toBeFocused();
+});
+
 test("Add Material preserves progress on a matching question and gives new questions no progress", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await seed(page, 1);

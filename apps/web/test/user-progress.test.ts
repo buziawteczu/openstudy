@@ -11,6 +11,8 @@ const studySet = () => StudySetSchema.parse(structuredClone(fixture));
 const record = (studySetId = fixture.id, questionId = fixture.questions[0]!.id) => ({
   studySetId, questionId, attempts: 1, firstAttemptCorrect: false, eventualCorrect: false, needsReview: true,
 });
+const save = (next: unknown, expectedAttempts = 0) =>
+  progress.saveQuestionProgress({ progress: next, expectedAttempts });
 function openDatabase(version?: number): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, version);
@@ -75,19 +77,49 @@ describe("UserProgress storage", () => {
     const first = record();
     const second = record(set.id, "question.second");
     const before = structuredClone(first);
-    expect(await progress.saveQuestionProgress(first)).toEqual({ success: true, value: first });
-    expect((await progress.saveQuestionProgress(second)).success).toBe(true);
+    expect(await save(first)).toEqual({ success: true, value: first });
+    expect((await save(second)).success).toBe(true);
     expect(first).toEqual(before);
     expect(await progress.getStudySetProgress(set.id)).toEqual({ success: true, value: [second, first] });
     await progress.close();
     expect(await createUserProgressStorage(name).getStudySetProgress(set.id)).toEqual({ success: true, value: [second, first] });
   });
 
+  it("accepts a first record and a sequential update, then rejects a stale snapshot", async () => {
+    const set = studySet();
+    expect((await sets.saveStudySet(set)).success).toBe(true);
+    const first = record();
+    const second = { ...first, attempts: 2, eventualCorrect: true };
+    expect(await save(first, 0)).toEqual({ success: true, value: first });
+    expect(await save(second, 1)).toEqual({ success: true, value: second });
+    expect(await save({ ...second, eventualCorrect: false }, 1)).toEqual({ success: false, error: "progress-conflict" });
+    expect(await progress.getStudySetProgress(set.id)).toEqual({ success: true, value: [second] });
+    expect(await sets.getStudySet(set.id)).toEqual({ success: true, value: set });
+  });
+
+  it("prevents two storage callers with the same baseline from overwriting each other", async () => {
+    const set = studySet();
+    expect((await sets.saveStudySet(set)).success).toBe(true);
+    expect((await save(record(), 0)).success).toBe(true);
+    const firstWriter = createUserProgressStorage(name);
+    const secondWriter = createUserProgressStorage(name);
+    const first = { ...record(), attempts: 2, eventualCorrect: true };
+    const stale = { ...record(), attempts: 2, eventualCorrect: false };
+    const firstWrite = firstWriter.saveQuestionProgress({ progress: first, expectedAttempts: 1 });
+    const staleWrite = secondWriter.saveQuestionProgress({ progress: stale, expectedAttempts: 1 });
+    expect(await firstWrite).toEqual({ success: true, value: first });
+    expect(await staleWrite).toEqual({ success: false, error: "progress-conflict" });
+    expect(await progress.getStudySetProgress(set.id)).toEqual({ success: true, value: [first] });
+    expect(await sets.getStudySet(set.id)).toEqual({ success: true, value: set });
+  });
+
   it("rejects malformed progress, nonexistent sets and nonexistent questions", async () => {
-    expect(await progress.saveQuestionProgress({ ...record(), attempts: 0 })).toEqual({ success: false, error: "validation-failed" });
-    expect(await progress.saveQuestionProgress(record())).toEqual({ success: false, error: "not-found" });
+    expect(await save({ ...record(), attempts: 0 })).toEqual({ success: false, error: "validation-failed" });
+    expect(await save(record(), -1)).toEqual({ success: false, error: "validation-failed" });
+    expect(await save({ ...record(), attempts: 2 }, 0)).toEqual({ success: false, error: "validation-failed" });
+    expect(await save(record())).toEqual({ success: false, error: "not-found" });
     expect((await sets.saveStudySet(studySet())).success).toBe(true);
-    expect(await progress.saveQuestionProgress(record(fixture.id, "missing.question"))).toEqual({ success: false, error: "question-not-found" });
+    expect(await save(record(fixture.id, "missing.question"))).toEqual({ success: false, error: "question-not-found" });
     expect(await progress.getStudySetProgress(fixture.id)).toEqual({ success: true, value: [] });
     const db = await openDatabase();
     await new Promise<void>((resolve) => {
@@ -96,6 +128,7 @@ describe("UserProgress storage", () => {
       tx.oncomplete = () => resolve();
     });
     expect(await progress.getStudySetProgress(fixture.id)).toEqual({ success: false, error: "incompatible-progress" });
+    expect(await save(record())).toEqual({ success: false, error: "incompatible-progress" });
     db.close();
   });
 
@@ -108,7 +141,7 @@ describe("UserProgress storage", () => {
       tx.objectStore("studySets").put({ id: set.id, schemaVersion: "2.0.0" });
       tx.oncomplete = () => resolve();
     });
-    expect(await progress.saveQuestionProgress(record())).toEqual({ success: false, error: "incompatible-study-set" });
+    expect(await save(record())).toEqual({ success: false, error: "incompatible-study-set" });
     await new Promise<void>((resolve) => {
       const tx = db.transaction("studySets", "readwrite");
       tx.objectStore("studySets").put(set);
@@ -120,7 +153,7 @@ describe("UserProgress storage", () => {
       if (this.name === "userProgress") throw new Error("simulated progress write failure");
       return put.call(this, value, key);
     });
-    expect(await progress.saveQuestionProgress(record())).toEqual({ success: false, error: "write-failed" });
+    expect(await save(record())).toEqual({ success: false, error: "write-failed" });
     vi.restoreAllMocks();
     expect(await progress.getStudySetProgress(set.id)).toEqual({ success: true, value: [] });
   });
@@ -130,8 +163,8 @@ describe("UserProgress storage", () => {
     const second = { ...studySet(), id: "set.second" };
     expect((await sets.saveStudySet(first)).success).toBe(true);
     expect((await sets.saveStudySet(second)).success).toBe(true);
-    expect((await progress.saveQuestionProgress(record())).success).toBe(true);
-    expect((await progress.saveQuestionProgress(record(second.id))).success).toBe(true);
+    expect((await save(record())).success).toBe(true);
+    expect((await save(record(second.id))).success).toBe(true);
     expect((await sets.deleteStudySet(first.id)).success).toBe(true);
     expect(await sets.getStudySet(first.id)).toEqual({ success: false, error: "not-found" });
     expect(await progress.getStudySetProgress(first.id)).toEqual({ success: true, value: [] });
@@ -141,7 +174,7 @@ describe("UserProgress storage", () => {
   it("rolls back content, summary and progress when progress deletion fails", async () => {
     const set = studySet();
     expect((await sets.saveStudySet(set)).success).toBe(true);
-    expect((await progress.saveQuestionProgress(record())).success).toBe(true);
+    expect((await save(record())).success).toBe(true);
     const original = IDBObjectStore.prototype.delete;
     vi.spyOn(IDBObjectStore.prototype, "delete").mockImplementation(function (this: IDBObjectStore, key) {
       if (this.name === "userProgress") throw new Error("simulated progress delete failure");
@@ -157,7 +190,7 @@ describe("UserProgress storage", () => {
   it("preserves progress through Add Material replacement and leaves new questions without it", async () => {
     const existing = studySet();
     expect((await sets.saveStudySet(existing)).success).toBe(true);
-    expect((await progress.saveQuestionProgress(record())).success).toBe(true);
+    expect((await save(record())).success).toBe(true);
     const next = studySet(); next.revision = 2;
     next.questions.push({ ...structuredClone(next.questions[0]!), id: "question.added" });
     expect((await sets.replaceStudySet({ expectedId: existing.id, expectedRevision: 1, nextStudySet: next })).success).toBe(true);

@@ -14,7 +14,7 @@ export type LibrarySummary = {
 
 export type StorageErrorCode = "storage-unavailable" | "validation-failed" | "read-failed" |
   "write-failed" | "delete-failed" | "not-found" | "incompatible-study-set" |
-  "revision-conflict" | "identity-mismatch" | "question-not-found" | "incompatible-progress";
+  "revision-conflict" | "identity-mismatch" | "question-not-found" | "incompatible-progress" | "progress-conflict";
 export type StorageResult<T> = { success: true; value: T } | { success: false; error: StorageErrorCode };
 
 const success = <T>(value: T): StorageResult<T> => ({ success: true, value });

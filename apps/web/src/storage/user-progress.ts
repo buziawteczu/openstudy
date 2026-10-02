@@ -21,10 +21,12 @@ export function createUserProgressStorage(name = DATABASE_NAME) {
     } catch { return failure("read-failed"); }
   }
 
-  async function saveQuestionProgress(input: unknown): Promise<StorageResult<UserProgress>> {
-    const parsed = UserProgressSchema.safeParse(input);
+  async function saveQuestionProgress(input: { progress: unknown; expectedAttempts: number }): Promise<StorageResult<UserProgress>> {
+    const parsed = UserProgressSchema.safeParse(input.progress);
     if (!parsed.success) return failure("validation-failed");
     const progress = parsed.data;
+    if (!Number.isSafeInteger(input.expectedAttempts) || input.expectedAttempts < 0 ||
+      progress.attempts !== input.expectedAttempts + 1) return failure("validation-failed");
     let db: IDBDatabase;
     try { db = await connection.open(); } catch { return failure("storage-unavailable"); }
     let tx: IDBTransaction;
@@ -42,7 +44,13 @@ export function createUserProgressStorage(name = DATABASE_NAME) {
       const current = migrateStudySet(stored);
       if (!current.success || current.studySet.id !== progress.studySetId) return abort("incompatible-study-set");
       if (!current.studySet.questions.some((question) => question.id === progress.questionId)) return abort("question-not-found");
-      tx.objectStore("userProgress").put(progress);
+      const progressStore = tx.objectStore("userProgress");
+      const existing: unknown = await requestValue(progressStore.get([progress.studySetId, progress.questionId]));
+      const storedProgress = existing === undefined ? undefined : UserProgressSchema.safeParse(existing);
+      if (storedProgress && (!storedProgress.success || storedProgress.data.studySetId !== progress.studySetId ||
+        storedProgress.data.questionId !== progress.questionId)) return abort("incompatible-progress");
+      if ((storedProgress?.data.attempts ?? 0) !== input.expectedAttempts) return abort("progress-conflict");
+      progressStore.put(progress);
       return (await done) ? success(progress) : failure("write-failed");
     } catch { return abort("write-failed"); }
   }

@@ -132,6 +132,57 @@ describe("Learn route", () => {
     expect(screen.getByRole("heading", { name: "Capital of the USA?" })).toBeVisible();
   });
 
+  it("keeps repeated checks from one session in write order", async () => {
+    const set = fixture();
+    expect((await studySetStorage.saveStudySet(set)).success).toBe(true);
+    const persist = userProgressStorage.saveQuestionProgress;
+    let releaseFirst: () => void = () => {};
+    const firstWrite = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const expectedAttempts: number[] = [];
+    vi.spyOn(userProgressStorage, "saveQuestionProgress").mockImplementation(async (input) => {
+      expectedAttempts.push(input.expectedAttempts);
+      if (input.expectedAttempts === 0) await firstWrite;
+      return persist(input);
+    });
+    const user = userEvent.setup();
+    renderAt();
+    await user.click(await screen.findByRole("button", { name: "Start learning" }));
+    await user.click(screen.getByRole("radio", { name: "Porto" }));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    await waitFor(() => expect(expectedAttempts).toEqual([0]));
+    await user.click(screen.getByRole("radio", { name: "Lisbon" }));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(expectedAttempts).toEqual([0]);
+    releaseFirst();
+    await waitFor(async () => {
+      expect(expectedAttempts).toEqual([0, 1]);
+      const stored = await userProgressStorage.getStudySetProgress(set.id);
+      expect(stored.success && stored.value[0]?.attempts).toBe(2);
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("warns on a conflict and does not submit later snapshots from the stale page", async () => {
+    const set = fixture();
+    expect((await studySetStorage.saveStudySet(set)).success).toBe(true);
+    const save = vi.spyOn(userProgressStorage, "saveQuestionProgress").mockResolvedValue({ success: false, error: "progress-conflict" });
+    const user = userEvent.setup();
+    renderAt();
+    await user.click(await screen.findByRole("button", { name: "Start learning" }));
+    await user.click(screen.getByRole("radio", { name: "Porto" }));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("progress couldn't be saved");
+    expect(save).toHaveBeenCalledWith({ progress: expect.objectContaining({ attempts: 1 }), expectedAttempts: 0 });
+    await user.click(screen.getByRole("radio", { name: "Lisbon" }));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.getByRole("heading", { name: "Correct." })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("heading", { name: "Capital of the USA?" })).toBeVisible();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("alert")).toHaveTextContent("progress couldn't be saved");
+    expect(await userProgressStorage.getStudySetProgress(set.id)).toEqual({ success: true, value: [] });
+  });
+
   it("handles missing, incompatible, and malformed-progress states", async () => {
     renderAt("/study-sets/missing/learn");
     expect(await screen.findByRole("heading", { name: "Study set not found" })).toBeVisible();

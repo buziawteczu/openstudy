@@ -63,6 +63,7 @@ function LearnExperience({ studySet, initialProgress }: { studySet: StudySet; in
   const [warning, setWarning] = useState(false);
   const progress = useRef(new Map(initialProgress.map((entry) => [entry.questionId, entry])));
   const unsaved = useRef(new Set<string>());
+  const conflicted = useRef(new Set<string>());
   const writeQueue = useRef(Promise.resolve());
   const questionHeading = useRef<HTMLHeadingElement>(null);
   const feedbackHeading = useRef<HTMLHeadingElement>(null);
@@ -101,16 +102,19 @@ function LearnExperience({ studySet, initialProgress }: { studySet: StudySet; in
     if (!result.success) return;
     setSession(result.value.session);
     const checked = result.value.checked;
-    const updated = updateUserProgress(progress.current.get(checked.questionId), checked);
+    const previous = progress.current.get(checked.questionId);
+    const updated = updateUserProgress(previous, checked);
     if (!updated.success) setWarning(true);
     else {
       progress.current.set(checked.questionId, updated.progress);
       unsaved.current.add(checked.questionId);
       const snapshot = updated.progress;
       writeQueue.current = writeQueue.current.then(async () => {
+        if (conflicted.current.has(checked.questionId)) return;
         let saved: Awaited<ReturnType<typeof userProgressStorage.saveQuestionProgress>>;
-        try { saved = await userProgressStorage.saveQuestionProgress(snapshot); }
+        try { saved = await userProgressStorage.saveQuestionProgress({ progress: snapshot, expectedAttempts: previous?.attempts ?? 0 }); }
         catch { saved = { success: false, error: "write-failed" }; }
+        if (!saved.success && saved.error === "progress-conflict") conflicted.current.add(checked.questionId);
         if (saved.success && progress.current.get(checked.questionId)?.attempts === snapshot.attempts) {
           unsaved.current.delete(checked.questionId);
           if (unsaved.current.size === 0) setWarning(false);

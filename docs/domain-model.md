@@ -52,6 +52,13 @@ Conceptual properties include:
 
 A StudySet is not a source file, import mapping, study session, progress record, or learning plan.
 
+Add Material evolves this aggregate under the same `id`, title and description.
+Existing Source, Category, Question and Choice IDs remain stable. Exact duplicate
+questions keep their saved Question and Choice IDs while gaining new provenance
+and category membership. New questions retain their incoming canonical IDs after
+collision checks. The accepted merged aggregate advances `revision` by one;
+preview, cancellation, conflict and failed persistence do not advance it.
+
 ### Canonical schema 1.0.0
 
 PR 1 defines the serialized V1 StudySet as:

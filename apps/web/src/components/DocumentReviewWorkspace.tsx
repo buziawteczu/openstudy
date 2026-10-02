@@ -8,7 +8,8 @@ import {
 import type { DocumentIngestionSummary } from "../import/ingest-file.js";
 import { createMappingIdentity, defaultStudySetTitle } from "../import/mapping-session.js";
 import { sourceContextText } from "../import/document-source.js";
-import { SaveStudySetButton } from "./SaveStudySetButton.js";
+import type { StudySet } from "@openstudy/schema";
+import { ReadyStudySetAction } from "./ReadyStudySetAction.js";
 
 function sourceIndex(extracted: ExtractedDocument): Map<string, DocumentBlock> {
   const result = new Map<string, DocumentBlock>();
@@ -45,7 +46,7 @@ function ExtractedContent({ summary }: { summary: DocumentIngestionSummary }) {
 }
 
 /** Intent gates grouping: the notes path never invokes candidate extraction. */
-export function DocumentImportWorkspace({ summary }: { summary: DocumentIngestionSummary }) {
+export function DocumentImportWorkspace({ summary, existingStudySet }: { summary: DocumentIngestionSummary; existingStudySet?: StudySet | undefined }) {
   const [intent, setIntent] = useState<"questions" | "notes" | "">("");
   const [selected, setSelected] = useState(false);
   const grouped = useRef<DocumentQuestions | null>(null);
@@ -69,15 +70,15 @@ export function DocumentImportWorkspace({ summary }: { summary: DocumentIngestio
       <h2>Content extracted successfully</h2>
       <p className="section-help">Creating questions from study material will be added later. No question candidates have been created.</p>
       <ExtractedContent summary={summary} />
-    </> : grouped.current && <DocumentReviewWorkspace summary={summary} grouped={grouped.current} />}
+    </> : grouped.current && <DocumentReviewWorkspace summary={summary} grouped={grouped.current} existingStudySet={existingStudySet} />}
     {selected && <button type="button" className="review-link" onClick={() => { setSelected(false); setIntent(""); }}>
       Change document intent (discard this review)</button>}
   </section>;
 }
 
-function DocumentReviewWorkspace({ summary, grouped }: { summary: DocumentIngestionSummary; grouped: DocumentQuestions }) {
+function DocumentReviewWorkspace({ summary, grouped, existingStudySet }: { summary: DocumentIngestionSummary; grouped: DocumentQuestions; existingStudySet?: StudySet | undefined }) {
   const [session, dispatch] = useReducer(reviewReducer, grouped, createReviewSession);
-  const [title, setTitle] = useState(defaultStudySetTitle(summary.filename));
+  const [title, setTitle] = useState(existingStudySet?.title ?? defaultStudySetTitle(summary.filename));
   const [result, setResult] = useState<DocumentReviewResult | null>(null);
   const [ungroupedPage, setUngroupedPage] = useState(0);
   const identity = useRef<MappingIdentity | undefined>(undefined);
@@ -233,11 +234,11 @@ function DocumentReviewWorkspace({ summary, grouped }: { summary: DocumentIngest
     </section>}
     <section className="validation-step" aria-labelledby="document-finish-title">
       <h2 id="document-finish-title">Check the reviewed study set</h2>
-      <label htmlFor="document-study-title">Study set title</label>
+      {!existingStudySet && <><label htmlFor="document-study-title">Study set title</label>
       <input id="document-study-title" className="mapping-control" value={title}
         aria-invalid={result?.status === "invalid" && result.issues.some((issue) => issue.startsWith("Study set title")) || undefined}
         aria-describedby={result?.status === "invalid" && result.issues.some((issue) => issue.startsWith("Study set title")) ? "document-final-errors" : undefined}
-        onChange={(event) => { setResult(null); setTitle(event.currentTarget.value); }} />
+        onChange={(event) => { setResult(null); setTitle(event.currentTarget.value); }} /></>}
       {counts.unresolved > 0 && <p className="section-help">{counts.unresolved} included questions still need attention. Correct and confirm them, or explicitly exclude them.</p>}
       <button type="button" className="action" onClick={finish}>Validate reviewed questions</button>
       <button type="button" className="review-link" disabled={counts.unresolved === 0}
@@ -251,8 +252,8 @@ function DocumentReviewWorkspace({ summary, grouped }: { summary: DocumentIngest
         <h2 id="document-final-title" ref={finalHeading} tabIndex={-1}>{result.status === "ready" ? "Study set ready" : "Study set needs attention"}</h2>
         <p>{counts.reviewed} candidates reviewed · {counts.included} included · {counts.excluded} excluded · {counts.unresolved} unresolved</p>
         {result.status === "ready" ? <><p>{result.candidate.title} · {result.candidate.questions.length} questions</p>
-          <p className="section-help">Ready to save on this device. Leaving or reloading before saving loses this import.</p>
-          <SaveStudySetButton studySet={result.candidate} /></>
+          <p className="section-help">{existingStudySet ? "Review the merge before updating this study set. Leaving or reloading loses this import." : "Ready to save on this device. Leaving or reloading before saving loses this import."}</p>
+          <ReadyStudySetAction studySet={result.candidate} existingStudySet={existingStudySet} /></>
           : <ul className="preview-problems" id="document-final-errors">{result.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>}
       </div>
     </section>}

@@ -12,6 +12,19 @@ same final canonical boundary. Both ready candidates can be explicitly saved to
 the local Library. Notes stop at extracted content. Study and generating questions
 from notes remain future work.
 
+Add Material reuses these same candidate-producing workflows. From a saved
+StudySet, `/study-sets/:id/add-material` produces a canonical incoming candidate,
+then a pure merge analysis compares it with the saved aggregate. Exact duplicate
+content includes question type, exact prompt, ordered answer text, correct answer
+position and exact explanation presence/value. IDs, provenance and categories
+are excluded from comparison. One saved match retains its identity and gains
+unique incoming provenance and exact-label category membership. Multiple saved
+matches and unsafe ID collisions block the update. New questions append in
+incoming order; contributing sources and new categories append after existing
+ones. The preview is session-only, and the user explicitly updates the saved
+StudySet through an atomic revision-checked storage transaction. Normal `/import`
+still saves a new StudySet. Notes still produce no candidate.
+
 ## Implemented neutral boundary (`@openstudy/import-core`)
 
 Conceptual PR 4 established contracts and inspection. Conceptual PR 5 adds

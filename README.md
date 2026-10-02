@@ -5,7 +5,9 @@ contains a local StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
 explicit structured mapping/validation, document-question review, and a not-found page.
 JSON/ZIP field mapping and DOCX/text-PDF existing-question review produce an
 all-valid canonical candidate that can be saved to IndexedDB. Document notes stop
-at extracted content: creating questions from notes is not supported. Study modes
+at extracted content: creating questions from notes is not supported. A saved
+StudySet can also receive new material through an exact-match merge preview and
+an explicit update. Study modes
 are not implemented yet. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
@@ -92,5 +94,5 @@ live in the stylesheet's component and base layers. Source scanning is scoped
 to the frontend `src` directory, independent of the workspace command location.
 No separate Tailwind JavaScript or PostCSS configuration is needed.
 
-History routing uses `/`, `/import`, `/study-sets/:id`, and a fallback for unknown paths. A future
+History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, and a fallback for unknown paths. A future
 static host must serve `index.html` for application routes so direct links work.

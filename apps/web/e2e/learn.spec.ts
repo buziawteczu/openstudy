@@ -91,6 +91,8 @@ test("Learn retries without revealing the answer, completes, persists progress a
   expect(records.find((item) => item.questionId === "question.portugal")).toMatchObject({
     attempts: 2, firstAttemptCorrect: false, eventualCorrect: true, needsReview: true,
   });
+  await page.getByRole("button", { name: "Study again" }).click();
+  await expect(page.getByRole("heading", { name: "Learn “Cities”" })).toBeFocused();
   await page.reload();
   await expect(page.getByRole("button", { name: "Start learning" })).toBeVisible();
   expect(await readProgress(page)).toEqual(records);

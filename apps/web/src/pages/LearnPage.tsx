@@ -138,6 +138,10 @@ function LearnExperience({ studySet, initialProgress, focusHeading }: { studySet
     setSession(result.value);
     requestAnimationFrame(() => result.value.completed ? completeHeading.current?.focus() : questionHeading.current?.focus());
   }
+  function studyAgain() {
+    setSession(null);
+    requestAnimationFrame(() => setupHeading.current?.focus());
+  }
 
   return <>
     <title>Learn · {studySet.title} | OpenStudy</title>
@@ -167,7 +171,7 @@ function LearnExperience({ studySet, initialProgress, focusHeading }: { studySet
       <p className="mt-3">{session.results.filter((result) => result.firstAttemptCorrect).length} correct on the first try</p>
       <p>{session.results.filter((result) => !result.firstAttemptCorrect).length} needed another attempt</p>
       <div className="mt-5 flex flex-wrap gap-x-5">
-        <button type="button" className="action" onClick={() => setSession(null)}>Study again</button>
+        <button type="button" className="action" onClick={studyAgain}>Study again</button>
         <Link className="back-link" to={path}>Back to study set</Link>
       </div>
     </> : question ? <section aria-labelledby="learn-question-title" className="max-w-xl">

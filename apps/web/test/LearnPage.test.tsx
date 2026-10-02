@@ -126,6 +126,7 @@ describe("Learn route", () => {
     const reopened = await studySetStorage.getStudySet(saved.id);
     expect(reopened.success && reopened.value.revision).toBe(1);
     await user.click(screen.getByRole("button", { name: "Study again" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Learn “Cities”" })).toHaveFocus());
     await user.click(screen.getByRole("button", { name: "Start learning" }));
     await user.click(screen.getByRole("radio", { name: "Lisbon" }));
     await user.click(screen.getByRole("button", { name: "Check answer" }));

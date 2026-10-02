@@ -263,6 +263,22 @@ describe("Learn route", () => {
     expect(screen.queryByRole("button", { name: "Start learning" })).not.toBeInTheDocument();
   });
 
+  it("restores heading focus through a progress-loading retry", async () => {
+    expect((await studySetStorage.saveStudySet(fixture())).success).toBe(true);
+    let finishRetry: (result: Awaited<ReturnType<typeof userProgressStorage.getStudySetProgress>>) => void = () => {};
+    const pendingRetry = new Promise<Awaited<ReturnType<typeof userProgressStorage.getStudySetProgress>>>(
+      (resolve) => { finishRetry = resolve; });
+    vi.spyOn(userProgressStorage, "getStudySetProgress")
+      .mockResolvedValueOnce({ success: false, error: "read-failed" })
+      .mockReturnValueOnce(pendingRetry);
+    const user = userEvent.setup();
+    renderAt();
+    await user.click(await screen.findByRole("button", { name: "Retry loading progress" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Learn", level: 1 })).toHaveFocus());
+    finishRetry({ success: true, value: [] });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Learn “Cities”" })).toHaveFocus());
+  });
+
   it("shows a controlled storage error", async () => {
     vi.spyOn(studySetStorage, "getStudySet").mockResolvedValue({ success: false, error: "storage-unavailable" });
     renderAt();

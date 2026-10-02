@@ -16,9 +16,13 @@ export function LearnPage() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [reload, setReload] = useState(0);
   const routeHeading = useRef<HTMLHeadingElement>(null);
+  const retryFocus = useRef(false);
   useEffect(() => {
     let active = true;
+    const focusFromRetry = retryFocus.current;
+    retryFocus.current = false;
     setState({ kind: "loading" });
+    if (focusFromRetry) requestAnimationFrame(() => { if (active) routeHeading.current?.focus(); });
     if (!id) { setState({ kind: "missing" }); return; }
     void (async () => {
       const loaded = await studySetStorage.getStudySet(id);
@@ -34,7 +38,7 @@ export function LearnPage() {
       }
       const progress = await userProgressStorage.getStudySetProgress(id);
       if (active) setState(progress.success ? { kind: "ready", studySet: loaded.value, progress: progress.value,
-        focusHeading: document.activeElement === routeHeading.current }
+        focusHeading: focusFromRetry || document.activeElement === routeHeading.current }
         : { kind: "progress-error", studySet: loaded.value });
     })();
     return () => { active = false; };
@@ -52,7 +56,7 @@ export function LearnPage() {
     {state.kind === "error" && <p role="alert" className="mt-4 text-danger">OpenStudy couldn't read this study set on this device.</p>}
     {state.kind === "progress-error" && <>
       <p role="alert" className="mt-4 text-danger">OpenStudy couldn't safely load learning progress for this study set. No session has started.</p>
-      <button type="button" className="action" onClick={() => setReload((value) => value + 1)}>Retry loading progress</button>
+      <button type="button" className="action" onClick={() => { retryFocus.current = true; setReload((value) => value + 1); }}>Retry loading progress</button>
     </>}
     {state.kind !== "loading" && <div className="mt-6"><Link className="back-link" to={id ? `/study-sets/${encodeURIComponent(id)}` : "/"}>← Back to study set</Link></div>}
   </>;

@@ -154,6 +154,27 @@ describe("Learn route", () => {
     expect(screen.getByRole("heading", { name: count === 1 ? "Session complete" : "Capital of the USA?" })).toBeVisible();
   });
 
+  it("counts a double-click on a wrong answer as one checked attempt", async () => {
+    const set = fixture();
+    expect((await studySetStorage.saveStudySet(set)).success).toBe(true);
+    const user = userEvent.setup();
+    renderAt();
+    await user.click(await screen.findByRole("button", { name: "Start learning" }));
+    await user.click(screen.getByRole("radio", { name: "Porto" }));
+    await user.dblClick(screen.getByRole("button", { name: "Check answer" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Not quite. Try another answer.");
+    expect(screen.queryByText("Lisbon is the capital.")).not.toBeInTheDocument();
+    await waitFor(async () => {
+      const stored = await userProgressStorage.getStudySetProgress(set.id);
+      expect(stored.success && stored.value[0]?.attempts).toBe(1);
+    });
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    await waitFor(async () => {
+      const stored = await userProgressStorage.getStudySetProgress(set.id);
+      expect(stored.success && stored.value[0]?.attempts).toBe(2);
+    });
+  });
+
   it("warns on progress write failure but lets the learner continue", async () => {
     expect((await studySetStorage.saveStudySet(fixture())).success).toBe(true);
     vi.spyOn(userProgressStorage, "saveQuestionProgress").mockResolvedValue({ success: false, error: "write-failed" });

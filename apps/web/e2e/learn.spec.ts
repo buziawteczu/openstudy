@@ -108,11 +108,17 @@ test("double-clicking Check answer leaves feedback visible until a separate Cont
   await seed(page);
   await page.getByRole("link", { name: "Learn" }).click();
   await page.getByRole("button", { name: "Start learning" }).click();
+  await page.getByRole("radio", { name: "Porto" }).check();
+  await page.getByRole("button", { name: "Check answer" }).dblclick();
+  await expect(page.getByRole("status")).toContainText("Not quite. Try another answer.");
+  await expect(page.getByText("Lisbon is the capital.")).toHaveCount(0);
+  await expect.poll(async () => (await readProgress(page))[0]?.attempts).toBe(1);
   await page.getByRole("radio", { name: "Lisbon" }).check();
   await page.getByRole("button", { name: "Check answer" }).dblclick();
   await expect(page.getByRole("heading", { name: "Capital of Portugal?" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Correct." })).toBeVisible();
   await expect(page.getByText("Lisbon is the capital.")).toBeVisible();
+  await expect.poll(async () => (await readProgress(page))[0]?.attempts).toBe(2);
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("radio", { name: "Paris" }).check();
   await page.getByRole("button", { name: "Check answer" }).dblclick();

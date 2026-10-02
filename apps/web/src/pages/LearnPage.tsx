@@ -202,7 +202,9 @@ function LearnExperience({ studySet, initialProgress, focusHeading }: { studySet
         // The button is reused after Check answer; ignore the rest of that click sequence.
         if (event.detail <= 1) continueSession();
       }}>Continue</button>
-        : <button type="button" className="action" disabled={!session.selectedChoiceId} onClick={check}>Check answer</button>}
+        : <button type="button" className="action" disabled={!session.selectedChoiceId} onClick={(event) => {
+          if (event.detail <= 1) check();
+        }}>Check answer</button>}
     </section> : <p role="alert">This question is no longer available. Return to the study set.</p>}
     {warning && <p role="alert" className="mt-6 text-small text-danger">Your learning progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}
     {session && !session.completed && <div className="mt-8"><Link className="back-link" to={path}>Exit session</Link></div>}

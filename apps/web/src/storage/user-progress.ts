@@ -26,7 +26,7 @@ export function createUserProgressStorage(name = DATABASE_NAME) {
     if (!parsed.success) return failure("validation-failed");
     const progress = parsed.data;
     if (!Number.isSafeInteger(input.expectedAttempts) || input.expectedAttempts < 0 ||
-      progress.attempts !== input.expectedAttempts + 1) return failure("validation-failed");
+      progress.attempts <= input.expectedAttempts) return failure("validation-failed");
     let db: IDBDatabase;
     try { db = await connection.open(); } catch { return failure("storage-unavailable"); }
     let tx: IDBTransaction;

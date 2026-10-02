@@ -8,13 +8,14 @@ import { Link, useParams } from "react-router";
 import { studySetStorage } from "../storage/study-sets.js";
 import { userProgressStorage } from "../storage/user-progress.js";
 
-type LoadState = { kind: "loading" } | { kind: "ready"; studySet: StudySet; progress: UserProgress[] } |
+type LoadState = { kind: "loading" } | { kind: "ready"; studySet: StudySet; progress: UserProgress[]; focusHeading: boolean } |
   { kind: "missing" | "incompatible" | "error" } | { kind: "progress-error"; studySet: StudySet };
 
 export function LearnPage() {
   const { id } = useParams();
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [reload, setReload] = useState(0);
+  const routeHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     let active = true;
     setState({ kind: "loading" });
@@ -32,18 +33,19 @@ export function LearnPage() {
         return;
       }
       const progress = await userProgressStorage.getStudySetProgress(id);
-      if (active) setState(progress.success ? { kind: "ready", studySet: loaded.value, progress: progress.value }
+      if (active) setState(progress.success ? { kind: "ready", studySet: loaded.value, progress: progress.value,
+        focusHeading: document.activeElement === routeHeading.current }
         : { kind: "progress-error", studySet: loaded.value });
     })();
     return () => { active = false; };
   }, [id, reload]);
 
-  if (state.kind === "ready") return <LearnExperience studySet={state.studySet} initialProgress={state.progress} />;
+  if (state.kind === "ready") return <LearnExperience studySet={state.studySet} initialProgress={state.progress} focusHeading={state.focusHeading} />;
   const title = state.kind === "missing" ? "Study set not found" : state.kind === "incompatible" ? "This study set can't be opened" : "Learn";
   return <>
     <title>Learn | OpenStudy</title>
     <p className="eyebrow">Learn</p>
-    <h1>{title}</h1>
+    <h1 ref={routeHeading} tabIndex={-1}>{title}</h1>
     {state.kind === "loading" && <p role="status" className="mt-5">Opening study set…</p>}
     {state.kind === "missing" && <p className="mt-4 text-muted">It may have been deleted from this device.</p>}
     {state.kind === "incompatible" && <p className="mt-4 text-muted">Its saved data could not be validated.</p>}
@@ -56,15 +58,17 @@ export function LearnPage() {
   </>;
 }
 
-function LearnExperience({ studySet, initialProgress }: { studySet: StudySet; initialProgress: UserProgress[] }) {
+function LearnExperience({ studySet, initialProgress, focusHeading }: { studySet: StudySet; initialProgress: UserProgress[]; focusHeading: boolean }) {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [count, setCount] = useState(String(Math.min(20, studySet.questions.length)));
   const [session, setSession] = useState<LearnSession | null>(null);
   const [warning, setWarning] = useState(false);
   const progress = useRef(new Map(initialProgress.map((entry) => [entry.questionId, entry])));
+  const persistedAttempts = useRef(new Map(initialProgress.map((entry) => [entry.questionId, entry.attempts])));
   const unsaved = useRef(new Set<string>());
   const conflicted = useRef(new Set<string>());
   const writeQueue = useRef(Promise.resolve());
+  const setupHeading = useRef<HTMLHeadingElement>(null);
   const questionHeading = useRef<HTMLHeadingElement>(null);
   const feedbackHeading = useRef<HTMLHeadingElement>(null);
   const completeHeading = useRef<HTMLHeadingElement>(null);
@@ -73,6 +77,8 @@ function LearnExperience({ studySet, initialProgress }: { studySet: StudySet; in
   const countValid = /^[0-9]+$/.test(count) && Number.isSafeInteger(numericCount) && numericCount >= 1 && numericCount <= eligible.length;
   const path = `/study-sets/${encodeURIComponent(studySet.id)}`;
   const question = session && !session.completed ? studySet.questions.find((item) => item.id === session.questionIds[session.currentIndex]) : undefined;
+
+  useEffect(() => { if (focusHeading) setupHeading.current?.focus(); }, [focusHeading]);
 
   function changeCategory(value: string) {
     const next = value || null;
@@ -112,9 +118,11 @@ function LearnExperience({ studySet, initialProgress }: { studySet: StudySet; in
       writeQueue.current = writeQueue.current.then(async () => {
         if (conflicted.current.has(checked.questionId)) return;
         let saved: Awaited<ReturnType<typeof userProgressStorage.saveQuestionProgress>>;
-        try { saved = await userProgressStorage.saveQuestionProgress({ progress: snapshot, expectedAttempts: previous?.attempts ?? 0 }); }
+        try { saved = await userProgressStorage.saveQuestionProgress({ progress: snapshot,
+          expectedAttempts: persistedAttempts.current.get(checked.questionId) ?? 0 }); }
         catch { saved = { success: false, error: "write-failed" }; }
         if (!saved.success && saved.error === "progress-conflict") conflicted.current.add(checked.questionId);
+        if (saved.success) persistedAttempts.current.set(checked.questionId, snapshot.attempts);
         if (saved.success && progress.current.get(checked.questionId)?.attempts === snapshot.attempts) {
           unsaved.current.delete(checked.questionId);
           if (unsaved.current.size === 0) setWarning(false);
@@ -135,7 +143,7 @@ function LearnExperience({ studySet, initialProgress }: { studySet: StudySet; in
     <title>Learn · {studySet.title} | OpenStudy</title>
     <p className="eyebrow">Learn</p>
     {!session ? <>
-      <h1>Learn “{studySet.title}”</h1>
+      <h1 ref={setupHeading} tabIndex={-1}>Learn “{studySet.title}”</h1>
       <p className="mt-3 text-muted">Choose what to study. Questions appear in their saved order.</p>
       <div className="mt-8 max-w-xl">
         <label htmlFor="learn-category" className="font-semibold">Topic / category</label>

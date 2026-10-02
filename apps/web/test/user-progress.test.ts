@@ -113,10 +113,18 @@ describe("UserProgress storage", () => {
     expect(await sets.getStudySet(set.id)).toEqual({ success: true, value: set });
   });
 
+  it("accepts a cumulative snapshot after a failed local write when durable attempts are unchanged", async () => {
+    const set = studySet();
+    expect((await sets.saveStudySet(set)).success).toBe(true);
+    const recovered = { ...record(), attempts: 2, eventualCorrect: true };
+    expect(await save(recovered, 0)).toEqual({ success: true, value: recovered });
+    expect(await progress.getStudySetProgress(set.id)).toEqual({ success: true, value: [recovered] });
+  });
+
   it("rejects malformed progress, nonexistent sets and nonexistent questions", async () => {
     expect(await save({ ...record(), attempts: 0 })).toEqual({ success: false, error: "validation-failed" });
     expect(await save(record(), -1)).toEqual({ success: false, error: "validation-failed" });
-    expect(await save({ ...record(), attempts: 2 }, 0)).toEqual({ success: false, error: "validation-failed" });
+    expect(await save(record(), 1)).toEqual({ success: false, error: "validation-failed" });
     expect(await save(record())).toEqual({ success: false, error: "not-found" });
     expect((await sets.saveStudySet(studySet())).success).toBe(true);
     expect(await save(record(fixture.id, "missing.question"))).toEqual({ success: false, error: "question-not-found" });

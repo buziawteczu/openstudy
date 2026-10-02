@@ -45,6 +45,22 @@ describe("Learn route", () => {
     expect(await screen.findByRole("heading", { name: "Learn “Cities”" })).toBeInTheDocument();
   });
 
+  it("focuses the loading route heading and restores focus when Learn is ready", async () => {
+    const set = fixture();
+    expect((await studySetStorage.saveStudySet(set)).success).toBe(true);
+    const user = userEvent.setup();
+    renderAt("/study-sets/set.cities");
+    await screen.findByText("Saved on this device");
+    let finishRead: (result: Awaited<ReturnType<typeof studySetStorage.getStudySet>>) => void = () => {};
+    const pendingRead = new Promise<Awaited<ReturnType<typeof studySetStorage.getStudySet>>>(
+      (resolve) => { finishRead = resolve; });
+    vi.spyOn(studySetStorage, "getStudySet").mockReturnValue(pendingRead);
+    await user.click(screen.getByRole("link", { name: "Learn" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Learn", level: 1 })).toHaveFocus());
+    finishRead({ success: true, value: set });
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Learn “Cities”" })).toHaveFocus());
+  });
+
   it("configures category/count and hides configuration once studying starts", async () => {
     expect((await studySetStorage.saveStudySet(fixture())).success).toBe(true);
     const user = userEvent.setup();
@@ -130,6 +146,30 @@ describe("Learn route", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("progress couldn't be saved");
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("heading", { name: "Capital of the USA?" })).toBeVisible();
+  });
+
+  it("recovers cumulative progress on a later check after a temporary write failure", async () => {
+    const set = fixture();
+    expect((await studySetStorage.saveStudySet(set)).success).toBe(true);
+    const persist = userProgressStorage.saveQuestionProgress;
+    const save = vi.spyOn(userProgressStorage, "saveQuestionProgress")
+      .mockResolvedValueOnce({ success: false, error: "write-failed" })
+      .mockImplementation((input) => persist(input));
+    const user = userEvent.setup();
+    renderAt();
+    await user.click(await screen.findByRole("button", { name: "Start learning" }));
+    await user.click(screen.getByRole("radio", { name: "Porto" }));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("progress couldn't be saved");
+    await user.click(screen.getByRole("radio", { name: "Lisbon" }));
+    await user.click(screen.getByRole("button", { name: "Check answer" }));
+    await waitFor(async () => {
+      const stored = await userProgressStorage.getStudySetProgress(set.id);
+      expect(stored.success && stored.value[0]).toMatchObject({ attempts: 2, eventualCorrect: true, needsReview: true });
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+    expect(save).toHaveBeenNthCalledWith(1, { progress: expect.objectContaining({ attempts: 1 }), expectedAttempts: 0 });
+    expect(save).toHaveBeenNthCalledWith(2, { progress: expect.objectContaining({ attempts: 2 }), expectedAttempts: 0 });
   });
 
   it("keeps repeated checks from one session in write order", async () => {

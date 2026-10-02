@@ -54,7 +54,7 @@ The value is not "any file becomes perfect questions automatically." The value i
 
 Intended modes are:
 
-- Learn: show one question and allow answer selection. A wrong answer does not immediately reveal the correct answer; the learner can deselect or change it and retry. The first wrong attempt may mark the question for review. A correct answer allows progression. First-attempt correctness is tracked separately from eventual correctness.
+- Learn: show one question and allow answer selection. A wrong answer never reveals the correct answer or explanation; the learner can clear or change the selection and retry until correct. The first wrong attempt marks the question for review; a later first-try correct encounter clears that flag. First-attempt correctness is tracked separately from eventual correctness. The session is temporary, while checked-answer progress persists locally.
 - Flashcards: show the question, reveal the answer on request, then choose `Again` or `Know it`.
 - Test: configure question count and optional category selection, shuffle questions, withhold correctness feedback until the end, show results, then review mistakes.
 

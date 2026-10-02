@@ -188,18 +188,16 @@ Schema 1.0.0 uses a flat category registry. A Category has a stable internal `id
 
 ## UserProgress
 
-UserProgress is separate local state that references content identity. A minimal conceptual record may include:
+UserProgress is separate local state that references content identity. Learn now stores:
 
 - `studySetId`;
 - `questionId`;
-- attempts;
-- first-attempt correctness;
-- eventual correctness or completion;
-- `needsReview`;
-- `lastStudied`;
-- a deliberately simple `masteryState`, if one is needed.
+- cumulative checked-answer `attempts`;
+- `firstAttemptCorrect` for the most recent Learn encounter;
+- `eventualCorrect` for that encounter;
+- `needsReview`, set by a first wrong check and cleared by a later first-try correct encounter.
 
-Mode-specific session state may exist separately from durable per-question progress. V1 should not hide a complex mastery algorithm inside storage records.
+The active Learn session is separate, memory-only state. Wrong answers keep the question active and never reveal the correct answer or explanation; the learner retries until correct. Learn does not change StudySet content or revision. No timestamp, mastery algorithm, or session resume is stored.
 
 When content is unavailable or retired, progress should not be silently reassigned to a similar question. Whether orphaned progress is retained, archived, or removed is an open lifecycle decision.
 

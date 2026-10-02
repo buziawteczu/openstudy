@@ -14,7 +14,8 @@ export type LibrarySummary = {
 };
 
 export type StorageErrorCode = "storage-unavailable" | "validation-failed" | "read-failed" |
-  "write-failed" | "delete-failed" | "not-found" | "incompatible-study-set";
+  "write-failed" | "delete-failed" | "not-found" | "incompatible-study-set" |
+  "revision-conflict" | "identity-mismatch";
 export type StorageResult<T> = { success: true; value: T } | { success: false; error: StorageErrorCode };
 
 const success = <T>(value: T): StorageResult<T> => ({ success: true, value });
@@ -121,6 +122,40 @@ export function createStudySetStorage(name = DATABASE_NAME) {
     return success(migrated.studySet);
   }
 
+  /** Compare and replace within one readwrite transaction across both stores. */
+  async function replaceStudySet(input: {
+    expectedId: string; expectedRevision: number; nextStudySet: unknown;
+  }): Promise<StorageResult<LibrarySummary>> {
+    const { expectedId, expectedRevision } = input;
+    const parsed = StudySetSchema.safeParse(input.nextStudySet);
+    if (!parsed.success || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1 ||
+      !Number.isSafeInteger(expectedRevision + 1)) return failure("validation-failed");
+    if (parsed.data.id !== expectedId) return failure("identity-mismatch");
+    if (parsed.data.revision !== expectedRevision + 1) return failure("validation-failed");
+    let db: IDBDatabase;
+    try { db = await database(); } catch { return failure("storage-unavailable"); }
+    let tx: IDBTransaction;
+    try { tx = db.transaction(["studySets", "libraryEntries"], "readwrite"); }
+    catch { return failure("write-failed"); }
+    const completed = transactionDone(tx).then(() => true, () => false);
+    async function abort(error: StorageErrorCode): Promise<StorageResult<LibrarySummary>> {
+      try { tx.abort(); } catch { /* The transaction may already have aborted. */ }
+      await completed;
+      return failure(error);
+    }
+    try {
+      const stored: unknown = await requestValue(tx.objectStore("studySets").get(expectedId));
+      if (stored === undefined) return abort("not-found");
+      const current = migrateStudySet(stored);
+      if (!current.success || current.studySet.id !== expectedId) return abort("incompatible-study-set");
+      if (current.studySet.revision !== expectedRevision) return abort("revision-conflict");
+      const summary = summaryOf(parsed.data);
+      tx.objectStore("studySets").put(parsed.data);
+      tx.objectStore("libraryEntries").put(summary);
+      return (await completed) ? success(summary) : failure("write-failed");
+    } catch { return abort("write-failed"); }
+  }
+
   async function deleteStudySet(id: string): Promise<StorageResult<void>> {
     let db: IDBDatabase;
     try { db = await database(); } catch { return failure("storage-unavailable"); }
@@ -142,7 +177,7 @@ export function createStudySetStorage(name = DATABASE_NAME) {
     databasePromise = undefined;
   }
 
-  return { saveStudySet, listStudySets, getStudySet, deleteStudySet, close };
+  return { saveStudySet, listStudySets, getStudySet, replaceStudySet, deleteStudySet, close };
 }
 
 export const studySetStorage = createStudySetStorage();

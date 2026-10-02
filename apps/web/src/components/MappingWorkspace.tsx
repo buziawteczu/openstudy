@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState, type FormEvent } from "react";
+import type { StudySet } from "@openstudy/schema";
 import type { RecordCollection, SourceDescriptor, SourceValue } from "@openstudy/import-core";
 import {
   discoverFields, fieldLabel, inspectRecord, previewMapping, TARGET_LABELS, validateMapping,
@@ -7,7 +8,7 @@ import {
 } from "@openstudy/mapping";
 import type { StructuredIngestionSummary } from "../import/ingest-file.js";
 import { createMappingIdentity, defaultStudySetTitle } from "../import/mapping-session.js";
-import { SaveStudySetButton } from "./SaveStudySetButton.js";
+import { ReadyStudySetAction } from "./ReadyStudySetAction.js";
 
 type CollectionOption = { key: string; source: SourceDescriptor; collection: RecordCollection; label: string };
 type Selections = Record<MappingTarget, string>;
@@ -41,7 +42,7 @@ function QuestionPreview({ record, compact = false }: { record: RecordPreview; c
   </article>;
 }
 
-export function MappingWorkspace({ summary }: { summary: StructuredIngestionSummary }) {
+export function MappingWorkspace({ summary, existingStudySet }: { summary: StructuredIngestionSummary; existingStudySet?: StudySet | undefined }) {
   const collections = useMemo<CollectionOption[]>(() => summary.sources.flatMap((item, sourceIndex) =>
     item.candidate.collections.map((collection) => ({
       key: JSON.stringify([sourceIndex, collection.key]),
@@ -65,17 +66,18 @@ export function MappingWorkspace({ summary }: { summary: StructuredIngestionSumm
       {collections.length === 0 && <p className="section-help">No record collections were found. Choose another file containing an array of question records.</p>}
       {option?.collection.records.length === 0 && <p className="section-help">This collection is empty. Choose another collection or file.</p>}
     </div>
-    {option && <SelectedMapping key={option.key} option={option} defaultTitle={defaultStudySetTitle(summary.filename)} />}
+    {option && <SelectedMapping key={option.key} option={option}
+      defaultTitle={existingStudySet?.title ?? defaultStudySetTitle(summary.filename)} existingStudySet={existingStudySet} />}
   </section>;
 }
 
-function SelectedMapping({ option, defaultTitle }: { option: CollectionOption; defaultTitle: string }) {
+function SelectedMapping({ option, defaultTitle, existingStudySet }: { option: CollectionOption; defaultTitle: string; existingStudySet?: StudySet | undefined }) {
   const [identity] = useState(createMappingIdentity);
   const fields = useMemo(() => discoverFields(option.collection), [option.collection]);
   const [selections, setSelections] = useState<Selections>(emptySelections);
   const [mode, setMode] = useState<AnswerMode | "">("");
   const [title, setTitle] = useState(defaultTitle);
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(existingStudySet?.description ?? "");
   const [validated, setValidated] = useState<{ input: MappingInput; result: MappingResult } | null>(null);
   const [page, setPage] = useState(0);
   const [activeRecord, setActiveRecord] = useState<number | null>(null);
@@ -190,8 +192,8 @@ function SelectedMapping({ option, defaultTitle }: { option: CollectionOption; d
       <section className="validation-step" aria-labelledby="validate-title">
         <p className="eyebrow">4 · Validate all records</p>
         <h2 id="validate-title">Check the complete study set</h2>
-        <p className="section-help">Every selected record must pass. Nothing is saved or added to your library.</p>
-        <div className="study-set-metadata">
+        <p className="section-help">Every selected record must pass. {existingStudySet ? "Your saved study set will not change until you review and confirm the update." : "Nothing is saved or added to your library."}</p>
+        {!existingStudySet && <div className="study-set-metadata">
           <div>
             <label htmlFor="study-set-title">Study set title <span className="field-optional">(required)</span></label>
             <input id="study-set-title" className="mapping-control" value={title} required
@@ -206,7 +208,7 @@ function SelectedMapping({ option, defaultTitle }: { option: CollectionOption; d
               aria-describedby={globalIssues.some((entry) => entry.target === "description") ? "validation-global-issues" : undefined}
               onChange={(event) => { invalidate(); setDescription(event.currentTarget.value); }} />
           </div>
-        </div>
+        </div>}
         <button className="action" type="submit" disabled={!input} aria-describedby={!input ? "validation-help" : undefined}>Validate all records</button>
         {!input && <p id="validation-help" className="sample-note">Choose the three required source fields and an answer mode first.</p>}
       </section>
@@ -217,8 +219,8 @@ function SelectedMapping({ option, defaultTitle }: { option: CollectionOption; d
         <p className="validation-counts">{validation.inspectedCount} {validation.inspectedCount === 1 ? "record" : "records"} inspected · {validation.validCount} ready · {validation.invalidCount} {validation.invalidCount === 1 ? "needs" : "need"} attention</p>
         {validation.status === "ready"
           ? <><p>{validation.candidate.title} · {validation.candidate.questions.length} {validation.candidate.questions.length === 1 ? "question" : "questions"} · {validation.candidate.categories.length} {validation.candidate.categories.length === 1 ? "category" : "categories"}</p>
-            <p className="section-help">Ready to save on this device. Leaving or reloading before saving loses this import.</p>
-            <SaveStudySetButton studySet={validation.candidate} /></>
+            <p className="section-help">{existingStudySet ? "Ready to compare with your saved study set." : "Ready to save on this device. Leaving or reloading before saving loses this import."}</p>
+            <ReadyStudySetAction studySet={validation.candidate} existingStudySet={existingStudySet} /></>
           : <p className="section-help">No complete study set has been created. Adjust the mapping, or correct the original file and upload it again.</p>}
       </div>
       {globalIssues.length > 0 && <ul id="validation-global-issues" className="preview-problems">{globalIssues.map((entry, index) =>

@@ -63,6 +63,7 @@ export function StudySetPage() {
         <ul className="mt-3 list-disc pl-5">{state.studySet.sources.map((source) =>
           <li key={source.id} className="[overflow-wrap:anywhere]">{source.originalFilename ?? source.label}</li>)}</ul>
       </section>
+      <div className="mt-8"><Link className="action inline-block" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/add-material`}>Add material</Link></div>
       <p className="mt-8 text-muted">Study modes aren't available yet.</p>
     </>}
     {state.kind === "missing" && <p className="mt-4 text-muted">It may have been deleted from this device.</p>}

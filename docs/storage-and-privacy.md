@@ -25,6 +25,14 @@ migration and final validation path without automatically writing back migrated
 data. The original JSON/ZIP/DOCX/PDF files, extracted blocks, mapping and review
 sessions, and UserProgress are not stored. There is no localStorage fallback.
 
+Add Material reads the saved StudySet through the same compatibility boundary.
+Its incoming candidate and merge preview remain in memory. The final update
+checks the saved revision inside a readwrite transaction, then replaces the
+StudySet and derived summary together. A stale revision, missing or incompatible
+record, or failed write leaves the previous record intact. Each successful update
+increments the positive safe integer revision once. Only the current revision is
+kept; there is no merge history or undo store.
+
 Persistence should keep separable records for:
 
 - canonical StudySet content and revision metadata;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import type { StudySet } from "@openstudy/schema";
 import { ingestFile, type IngestionSummary } from "../import/ingest-file.js";
 import { ingestionErrorMessage, type IngestionFailure } from "../import/errors.js";
 import { MappingWorkspace } from "../components/MappingWorkspace.js";
@@ -11,7 +12,7 @@ type State =
   | { kind: "success"; summary: IngestionSummary }
   | { kind: "error"; error: IngestionFailure };
 
-export function ImportPage() {
+export function ImportPage({ existingStudySet }: { existingStudySet?: StudySet | undefined }) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const input = useRef<HTMLInputElement>(null);
   const controller = useRef<AbortController | null>(null);
@@ -46,12 +47,14 @@ export function ImportPage() {
   const filename = state.kind === "reading" ? state.filename : state.kind === "success" ? state.summary.filename : state.kind === "error" ? state.error.filename : undefined;
   const structured = state.kind === "success" && state.summary.kind === "structured";
   const loaded = state.kind === "success";
+  const returnPath = existingStudySet ? `/study-sets/${encodeURIComponent(existingStudySet.id)}` : "/";
   return (
     <>
-      <title>Import | OpenStudy</title>
+      {existingStudySet ? <title>{`Add material to ${existingStudySet.title} | OpenStudy`}</title> : <title>Import | OpenStudy</title>}
       <div className="mb-8">
-        <p className="eyebrow">Import</p>
-        <h1 tabIndex={-1}>Import study material</h1>
+        <p className="eyebrow">{existingStudySet ? "Add material" : "Import"}</p>
+        <h1 tabIndex={-1}>{existingStudySet ? `Add material to “${existingStudySet.title}”` : "Import study material"}</h1>
+        {existingStudySet && <p className="mt-3 text-muted">New material will be compared before this study set is updated.</p>}
       </div>
       <section className={"rounded-surface border border-border bg-surface " + (loaded ? "p-6" : "p-card")} aria-labelledby="choose-file-title">
         <h2 id="choose-file-title">Choose your material</h2>
@@ -97,11 +100,11 @@ export function ImportPage() {
         {state.kind === "error" && <p role="alert" className="mt-3 text-danger [overflow-wrap:anywhere]">{ingestionErrorMessage(state.error)}</p>}
         <div className={structured ? "ingestion-actions" : undefined}>
           {state.kind !== "idle" && <button type="button" className="action cursor-pointer" onClick={reset}>{state.kind === "reading" ? "Cancel" : "Choose another file"}</button>}
-          <div><Link className="back-link" to="/"><span aria-hidden="true">←</span> Back to library</Link></div>
+          <div><Link className="back-link" to={returnPath}><span aria-hidden="true">←</span> {existingStudySet ? "Back to study set" : "Back to library"}</Link></div>
         </div>
       </section>
-      {state.kind === "success" && state.summary.kind === "structured" && <MappingWorkspace summary={state.summary} />}
-      {state.kind === "success" && state.summary.kind === "document" && <DocumentImportWorkspace summary={state.summary} />}
+      {state.kind === "success" && state.summary.kind === "structured" && <MappingWorkspace summary={state.summary} existingStudySet={existingStudySet} />}
+      {state.kind === "success" && state.summary.kind === "document" && <DocumentImportWorkspace summary={state.summary} existingStudySet={existingStudySet} />}
     </>
   );
 }

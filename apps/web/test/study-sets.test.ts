@@ -37,6 +37,74 @@ afterEach(async () => {
 });
 
 describe("local StudySet storage", () => {
+  it("replaces content and summary together at the expected revision", async () => {
+    const original = studySet();
+    const next = studySet();
+    next.revision = 2;
+    next.questions.push({ ...structuredClone(next.questions[0]!), id: "another.question" });
+    expect((await storage.saveStudySet(original)).success).toBe(true);
+    const result = await storage.replaceStudySet({ expectedId: original.id, expectedRevision: 1, nextStudySet: next });
+    expect(result).toEqual({ success: true, value: {
+      id: original.id, title: original.title, revision: 2, questionCount: 2, categoryCount: 0, sourceCount: 1,
+    } });
+    expect(await storage.getStudySet(original.id)).toEqual({ success: true, value: next });
+    expect(await storage.listStudySets()).toEqual({ success: true, value: [result.success ? result.value : undefined] });
+  });
+
+  it("rejects stale revisions and preserves the current content and summary", async () => {
+    const original = studySet();
+    expect((await storage.saveStudySet(original)).success).toBe(true);
+    const next = studySet(); next.revision = 2;
+    expect((await storage.replaceStudySet({ expectedId: original.id, expectedRevision: 1, nextStudySet: next })).success).toBe(true);
+    const other = structuredClone(next); other.title = "Stale change";
+    expect(await storage.replaceStudySet({ expectedId: original.id, expectedRevision: 1, nextStudySet: other }))
+      .toEqual({ success: false, error: "revision-conflict" });
+    expect(await storage.getStudySet(original.id)).toEqual({ success: true, value: next });
+    const list = await storage.listStudySets();
+    expect(list.success && list.value[0]!.revision).toBe(2);
+  });
+
+  it("rejects invalid identity and revisions before writing", async () => {
+    const original = studySet();
+    expect((await storage.saveStudySet(original)).success).toBe(true);
+    const next = studySet(); next.revision = 2;
+    expect(await storage.replaceStudySet({ expectedId: "other", expectedRevision: 1, nextStudySet: next }))
+      .toEqual({ success: false, error: "identity-mismatch" });
+    expect(await storage.replaceStudySet({ expectedId: original.id, expectedRevision: 2, nextStudySet: next }))
+      .toEqual({ success: false, error: "validation-failed" });
+    expect(await storage.replaceStudySet({ expectedId: original.id, expectedRevision: 1, nextStudySet: { ...next, questions: [] } }))
+      .toEqual({ success: false, error: "validation-failed" });
+    expect(await storage.getStudySet(original.id)).toEqual({ success: true, value: original });
+  });
+
+  it("rolls back both stores when replacement summary writing fails", async () => {
+    const original = studySet();
+    expect((await storage.saveStudySet(original)).success).toBe(true);
+    const next = studySet(); next.revision = 2;
+    const put = IDBObjectStore.prototype.put;
+    vi.spyOn(IDBObjectStore.prototype, "put").mockImplementation(function (this: IDBObjectStore, value, key) {
+      if (this.name === "libraryEntries") throw new Error("simulated write failure");
+      return put.call(this, value, key);
+    });
+    expect(await storage.replaceStudySet({ expectedId: original.id, expectedRevision: 1, nextStudySet: next }))
+      .toEqual({ success: false, error: "write-failed" });
+    vi.restoreAllMocks();
+    expect(await storage.getStudySet(original.id)).toEqual({ success: true, value: original });
+    const list = await storage.listStudySets();
+    expect(list.success && list.value[0]!.revision).toBe(1);
+  });
+
+  it("does not replace missing or incompatible stored data", async () => {
+    const next = studySet(); next.revision = 2;
+    expect(await storage.replaceStudySet({ expectedId: next.id, expectedRevision: 1, nextStudySet: next }))
+      .toEqual({ success: false, error: "not-found" });
+    expect((await storage.saveStudySet(studySet())).success).toBe(true);
+    const db = await openDatabase();
+    await writeRaw(db, { ...studySet(), schemaVersion: "2.0.0" });
+    expect(await storage.replaceStudySet({ expectedId: next.id, expectedRevision: 1, nextStudySet: next }))
+      .toEqual({ success: false, error: "incompatible-study-set" });
+    db.close();
+  });
   it("saves, lists and reopens canonical content with provenance", async () => {
     const input = studySet();
     input.questions[0]!.provenance = [{ sourceId: input.sources[0]!.id, locator: "record:1" }];

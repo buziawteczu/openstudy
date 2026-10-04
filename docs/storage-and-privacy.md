@@ -16,14 +16,18 @@ This is both a product choice and an architectural boundary. Local-first reduces
 ## Local persistence direction
 
 IndexedDB now stores canonical StudySets through a small web storage module.
-Database `openstudy-library` uses layout version `1`, with `studySets` and
-`libraryEntries` stores keyed by the canonical StudySet ID. The layout version
+Database `openstudy-library` uses layout version `2`, with `studySets` and
+`libraryEntries` stores keyed by the canonical StudySet ID, plus `userProgress`
+keyed by `[studySetId, questionId]` and indexed by `studySetId`. Upgrading a
+layout v1 database preserves its existing StudySets and summaries. The layout version
 is independent of canonical `StudySet.schemaVersion` (`1.0.0`). Save and delete
 update both stores in one transaction; list reads summaries only. Entries sort
 by title using code-unit order, then ID for ties. Reads use the existing schema
 migration and final validation path without automatically writing back migrated
 data. The original JSON/ZIP/DOCX/PDF files, extracted blocks, mapping and review
-sessions, and UserProgress are not stored. There is no localStorage fallback.
+sessions are not stored. Validated per-question UserProgress is stored only after
+an answer is checked. Active Learn session configuration, position, and selection
+are not stored. There is no localStorage fallback.
 
 Add Material reads the saved StudySet through the same compatibility boundary.
 Its incoming candidate and merge preview remain in memory. The final update
@@ -32,6 +36,9 @@ StudySet and derived summary together. A stale revision, missing or incompatible
 record, or failed write leaves the previous record intact. Each successful update
 increments the positive safe integer revision once. Only the current revision is
 kept; there is no merge history or undo store.
+Add Material does not touch UserProgress: retained Question IDs keep their progress,
+and new questions begin without it. Deleting a StudySet removes its summary and
+associated progress in one transaction. Learning never increments StudySet.revision.
 
 Persistence should keep separable records for:
 

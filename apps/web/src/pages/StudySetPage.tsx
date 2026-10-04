@@ -63,8 +63,8 @@ export function StudySetPage() {
         <ul className="mt-3 list-disc pl-5">{state.studySet.sources.map((source) =>
           <li key={source.id} className="[overflow-wrap:anywhere]">{source.originalFilename ?? source.label}</li>)}</ul>
       </section>
-      <div className="mt-8"><Link className="action inline-block" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/add-material`}>Add material</Link></div>
-      <p className="mt-8 text-muted">Study modes aren't available yet.</p>
+      <div className="mt-8"><Link className="action inline-block" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/learn`}>Learn</Link></div>
+      <div><Link className="back-link" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/add-material`}>Add material</Link></div>
     </>}
     {state.kind === "missing" && <p className="mt-4 text-muted">It may have been deleted from this device.</p>}
     {state.kind === "incompatible" && <p className="mt-4 text-muted">Its saved data could not be validated.</p>}
@@ -74,7 +74,7 @@ export function StudySetPage() {
       {!confirm ? <button ref={deleteButton} type="button" className="review-link" onClick={() => setConfirm(true)}>{state.kind === "ready" ? "Delete study set" : "Delete from this device"}</button>
         : <div className="rounded-surface border border-border bg-surface p-5" role="group" aria-labelledby="delete-title">
           <h2 id="delete-title">Delete {state.kind === "ready" ? `“${state.studySet.title}”` : "this study set"}?</h2>
-          <p className="mt-2 text-muted">This removes the study set from this browser.</p>
+          <p className="mt-2 text-muted">This removes the study set and its learning progress from this browser.</p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button ref={cancelButton} type="button" disabled={deleting} className="review-link" onClick={cancel}>Cancel</button>
             <button type="button" disabled={deleting} className="action" onClick={() => void remove()}>{deleting ? "Deleting…" : "Delete"}</button>

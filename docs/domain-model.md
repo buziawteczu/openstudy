@@ -29,6 +29,8 @@ Changing progress must not mutate canonical questions. Generating a learning pla
 | NormalizedDocument | Extracted paragraphs, tables, pages and formatting | DOCX/text-PDF neutral blocks; not canonical study content |
 | StudySetRevision | A committed content state or change boundary | V1 concept; retention mechanics open |
 | UserProgress | Learner state keyed by stable content identity | V1 |
+| FlashcardProgress | Separate durable recall ratings keyed by stable content identity | Implemented |
+| FlashcardSession | Temporary ordered card/reveal/result state | Memory only |
 | LearningPlan | Optional goals, sequencing, or schedule over existing content | Future |
 
 ## StudySet
@@ -201,6 +203,33 @@ The active Learn session is separate, memory-only state. Wrong answers keep the 
 
 When content is unavailable or retired, progress should not be silently reassigned to a similar question. Whether orphaned progress is retained, archived, or removed is an open lifecycle decision.
 
+## FlashcardProgress and FlashcardSession
+
+Flashcards keep three distinct objects: canonical StudySet content, durable
+FlashcardProgress, and a temporary FlashcardSession. FlashcardProgress contains only:
+
+- PortableId `studySetId` and `questionId`;
+- positive safe-integer `reviews`;
+- non-negative safe-integer `againCount` and `knowItCount`;
+- `lastRating`: `again` or `know-it`.
+
+`reviews === againCount + knowItCount`; the pure update sets lastRating to the
+latest applied rating. There are no timestamps, scheduling fields, mastery, or
+shared needsReview semantics. Again is not a wrong answer and Know it is not a
+correct Learn answer. Flashcards never fabricate or change Learn attempts,
+firstAttemptCorrect, eventualCorrect, or needsReview.
+
+The session holds ordered Question IDs, currentIndex, revealed, rating results,
+completed, and StudySet ID. It holds no answer/explanation content. Reveal changes
+only temporary state; only a rating updates durable progress. Both ratings advance
+immediately, with no same-session requeue. Neither the active nor completed session
+is persisted. Reload returns to setup. Studying changes neither StudySet content,
+revision, nor schemaVersion 1.0.0.
+
+Add Material retains both progress types through stable Question IDs, including
+exact duplicates. New questions have no progress. Deletion removes both progress
+types with the StudySet and its summary atomically.
+
 ## LearningPlan
 
 A LearningPlan is a future, optional layer that can reference StudySets, categories, and questions to express sequencing, goals, or schedules. It may be manually created or suggested by an optional LLM later.
@@ -218,6 +247,7 @@ SourceDocument 1 --- 0..many NormalizedDocument artifacts
 Question many --- many Source locators (future-capable provenance)
 UserProgress many --- 1 StudySet
 UserProgress many --- 1 Question
+FlashcardProgress many --- 1 StudySet/Question
 LearningPlan many --- many StudySet/Question references
 ```
 

@@ -2,12 +2,12 @@
 
 A local-first, mobile-friendly study tool. The current application foundation
 contains a local StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
-explicit structured mapping/validation, document-question review, Learn and Flashcards modes, and a not-found page.
+explicit structured mapping/validation, document-question review, Learn, Flashcards and Test modes, and a not-found page.
 JSON/ZIP field mapping and DOCX/text-PDF existing-question review produce an
 all-valid canonical candidate that can be saved to IndexedDB. Document notes stop
 at extracted content: creating questions from notes is not supported. A saved
 StudySet can also receive new material through an exact-match merge preview and
-an explicit update. Test is not implemented yet. See the
+an explicit update. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
 ## Repository
@@ -16,7 +16,7 @@ an explicit update. Test is not implemented yet. See the
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
 - `packages/import-core`: neutral structured/document contracts, record-array discovery, document normalization, and inspection; no file APIs or canonical mapping.
 - `packages/structured-mapping`: `@openstudy/mapping`, pure explicit field mapping, document-question grouping/review transformations, issues, and canonical candidate validation.
-- `packages/study`: `@openstudy/study`, pure Learn/Flashcard session transitions and separate validated progress rules.
+- `packages/study`: `@openstudy/study`, pure Learn/Flashcard/Test session transitions and separate validated Learn/Flashcard progress rules.
 - `docs`: product and architecture contracts.
 
 ## Development
@@ -57,7 +57,7 @@ The suite starts and stops its own preview server on port 4173. It checks
 navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion,
 structured mapping/validation/issue inspection, existing-question document review,
 notes intent, inline corrections/exclusion, local Library save/reload/delete, Learn answer/retry,
-Flashcard reveal/rating, separate progress persistence and cleanup, reset/errors, 200% text scaling, and layout at widths
+Flashcard reveal/rating, Test navigation/submission/mistake review, separate progress persistence and cleanup, reset/errors, 200% text scaling, and layout at widths
 320, 375, 390, 768, 1440, and 1920px. Local visual captures and failure traces are written to
 the ignored `apps/web/test-results/` directory.
 
@@ -91,6 +91,28 @@ Add Material preserves both progress types through stable Question IDs, and
 deleting a StudySet atomically removes both. Failed writes show a warning while
 study remains usable; stale writes cannot overwrite newer progress.
 
+## Test
+
+Open a saved StudySet and choose Test, one optional topic, a question count, and
+question shuffle (on by default). The initial count is up to 20. All topics includes
+uncategorized questions. Shuffle uses Fisher–Yates over eligible questions before
+taking the count; disabling it preserves saved order. Choices always retain their
+canonical order, and navigating never reshuffles the session.
+
+Select, change or clear answers and use Previous / Next, including while unanswered.
+No option is identified as correct, and no explanation or correctness feedback is
+rendered before submission. Finish test submits answered tests; unanswered questions
+require explicit confirmation and earn zero points within the full denominator.
+Results show correct / total, the percentage rounded to the nearest integer, and
+separate correct, incorrect and unanswered counts. Review mistakes shows only wrong
+and unanswered questions, one at a time, with canonical answers and explanations.
+Take another test returns to setup rather than starting automatically.
+
+Test sessions, results and review position exist only in memory. Reload returns to
+setup. Test never writes Learn UserProgress, FlashcardProgress, Test history or
+canonical content. IndexedDB stays at layout 3, schemaVersion stays 1.0.0, and Test
+never increments StudySet.revision. No timer, grading bands or pass/fail is provided.
+
 ## Frontend layout
 
 Pages share a centered canvas with a `45rem` maximum width (about 720px at the
@@ -112,5 +134,5 @@ live in the stylesheet's component and base layers. Source scanning is scoped
 to the frontend `src` directory, independent of the workspace command location.
 No separate Tailwind JavaScript or PostCSS configuration is needed.
 
-History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, `/study-sets/:id/learn`, `/study-sets/:id/flashcards`, and a fallback for unknown paths. A future
+History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, `/study-sets/:id/learn`, `/study-sets/:id/flashcards`, `/study-sets/:id/test`, and a fallback for unknown paths. A future
 static host must serve `index.html` for application routes so direct links work.

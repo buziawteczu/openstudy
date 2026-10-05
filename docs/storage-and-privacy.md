@@ -55,6 +55,14 @@ without either. Deleting a StudySet removes its summary and both progress types
 in one transaction. Neither Learn nor Flashcards increments StudySet.revision
 or changes schemaVersion 1.0.0.
 
+Test has no durable progress or history. The Test route only reads a validated
+StudySet; active selections, chosen question order, configuration, current index,
+submission result, score and mistake-review position remain in memory. Reload
+returns to configuration. Test never writes Learn UserProgress or FlashcardProgress
+and never changes content or revision. Layout version remains 3 with the existing
+four stores; schemaVersion remains 1.0.0. No Test migration, Test store or session
+autosave is introduced. Add Material and deletion retain their existing behavior.
+
 Persistence should keep separable records for:
 
 - canonical StudySet content and revision metadata;

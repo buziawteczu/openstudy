@@ -66,6 +66,7 @@ export function StudySetPage() {
       <div className="mt-8 flex flex-wrap gap-x-4">
         <Link className="action" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/learn`}>Learn</Link>
         <Link className="action" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/flashcards`}>Flashcards</Link>
+        <Link className="action" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/test`}>Test</Link>
       </div>
       <div><Link className="back-link" to={`/study-sets/${encodeURIComponent(state.studySet.id)}/add-material`}>Add material</Link></div>
     </>}

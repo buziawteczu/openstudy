@@ -49,14 +49,14 @@ The value is not "any file becomes perfect questions automatically." The value i
 
 1. Choose a StudySet, optional category, mode, and question count.
 2. Start the session.
-3. Hide configuration and focus on the question, answers, progress, and feedback.
-4. Save progress separately from the StudySet.
+3. Hide configuration and focus on the question and session position, with feedback appropriate to the mode.
+4. Save Learn/Flashcard progress separately from the StudySet; Test results remain temporary.
 
 Intended modes are:
 
 - Learn: show one question and allow answer selection. A wrong answer never reveals the correct answer or explanation; the learner can clear or change the selection and retry until correct. The first wrong attempt marks the question for review; a later first-try correct encounter clears that flag. First-attempt correctness is tracked separately from eventual correctness. The session is temporary, while checked-answer progress persists locally.
 - Flashcards (implemented): question → Reveal answer → `Again` / `Know it` → next card. The correct answer and optional explanation are hidden before reveal; alternative choices are not rendered. Configuration disappears during study. All topics includes uncategorized questions; one category uses canonical IDs. Cards follow saved order, with a default of up to 20 and a validated count. Both ratings persist separate FlashcardProgress and advance immediately. Again requests future review without requeueing in this session; Know it records current recall without removing content. No correctness grade or spaced repetition is created. Sessions are temporary; the summary shows only reviewed, Know it, and Again counts.
-- Test (future, not implemented): configure question count and optional category selection, shuffle questions, withhold correctness feedback until the end, show results, then review mistakes.
+- Test (implemented): configure one optional category, a positive question count (initially up to 20), and question shuffle enabled by default. All topics includes uncategorized questions. Shuffle changes question order once; choice order stays canonical. Select, change or clear answers and navigate Previous / Next without answering every question. Correctness and explanations are withheld until submission. Finish test requires explicit confirmation when questions are unanswered; these receive zero credit and count toward the denominator. Results show correct / total, a rounded percentage, and separate correct/incorrect/unanswered counts. Review wrong and unanswered questions in session order, one at a time. Take another test returns to configuration. Test sessions and results are memory-only and never affect Learn UserProgress or FlashcardProgress. No Test history, timer or grading bands.
 
 Complex confidence scales and mastery algorithms are not required for V1.
 

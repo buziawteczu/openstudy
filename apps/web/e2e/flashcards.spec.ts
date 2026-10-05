@@ -144,10 +144,14 @@ test("deleting a StudySet removes both mode-specific progress stores", async ({ 
 for (const rating of ["Again", "Know it"] as const) test(`double-clicking ${rating} reviews once and does not reveal the next card`, async ({ page }, info) => {
   test.skip(!["mobile-320", "desktop"].includes(info.project.name)); await seed(page); await start(page);
   await page.getByRole("button", { name: "Reveal answer" }).click(); await page.getByRole("button", { name: rating, exact: true }).dblclick();
+  await expect(page).toHaveURL(/\/study-sets\/set\.cards\/flashcards$/);
   await expect(page.getByRole("heading", { name: "Capital of France?" })).toBeFocused();
+  await expect(page.getByText("Card 2 of 2", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Correct answer" })).toHaveCount(0);
   await expect.poll(async () => (await readStore(page, "flashcardProgress"))[0]?.reviews).toBe(1);
-  expect(await readStore(page, "flashcardProgress")).toHaveLength(1);
+  expect(await readStore(page, "flashcardProgress")).toEqual([{ studySetId: "set.cards", questionId: "question.portugal",
+    reviews: 1, againCount: rating === "Again" ? 1 : 0, knowItCount: rating === "Know it" ? 1 : 0,
+    lastRating: rating === "Again" ? "again" : "know-it" }]);
 });
 test("Flashcards keyboard flow has visible focus and comfortable controls", async ({ page }, info) => {
   test.skip(!["mobile-320", "desktop"].includes(info.project.name)); await seed(page, 1); await start(page);

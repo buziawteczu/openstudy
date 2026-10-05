@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { StudySet } from "@openstudy/schema";
 import { createFlashcardSession, eligibleQuestions, rateFlashcard, revealFlashcard, summarizeFlashcardSession,
   updateFlashcardProgress, type FlashcardProgress, type FlashcardRating, type FlashcardSession } from "@openstudy/study";
@@ -8,6 +8,11 @@ import { flashcardProgressStorage } from "../storage/flashcard-progress.js";
 
 type LoadState = { kind: "loading" } | { kind: "ready"; studySet: StudySet; progress: FlashcardProgress[]; focusHeading: boolean } |
   { kind: "missing" | "incompatible" | "error" } | { kind: "progress-error" };
+
+function ignoreRepeatedNavigationClick(event: MouseEvent<HTMLAnchorElement>) {
+  // Advancing a card can move a link beneath the second click of a rating double-click.
+  if (event.detail > 1) event.preventDefault();
+}
 
 export function FlashcardsPage() {
   const { id } = useParams();
@@ -157,8 +162,10 @@ function FlashcardExperience({ studySet, initialProgress, focusHeading }: { stud
       <p className="mt-3">{summary!.knowIt} Know it</p>
       <p>{summary!.again} Again</p>
       <div className="mt-5 flex flex-wrap items-center gap-x-5">
-        <button type="button" className="action" onClick={() => { commit(null); focus("setup"); }}>Study again</button>
-        <Link className="back-link" to={path}>Back to study set</Link>
+        <button type="button" className="action" onClick={(event) => {
+          if (event.detail <= 1) { commit(null); focus("setup"); }
+        }}>Study again</button>
+        <Link className="back-link" to={path} onClick={ignoreRepeatedNavigationClick}>Back to study set</Link>
       </div>
     </> : question ? <section className="max-w-xl" aria-labelledby="flashcard-question-title" key={question.id}>
       <p id="flashcard-position" className="text-small font-semibold text-muted">Card {session.currentIndex + 1} of {session.questionIds.length}</p>
@@ -182,6 +189,6 @@ function FlashcardExperience({ studySet, initialProgress, focusHeading }: { stud
       </div>
     </section> : <p role="alert">This card is no longer available. Return to the study set.</p>}
     {warning && <p role="alert" className="mt-6 text-small text-danger">Your flashcard progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}
-    {(!session || !session.completed) && <div className="mt-8"><Link className="back-link" to={path}>{session ? "Exit session" : "Back to study set"}</Link></div>}
+    {(!session || !session.completed) && <div className="mt-8"><Link className="back-link" to={path} onClick={ignoreRepeatedNavigationClick}>{session ? "Exit session" : "Back to study set"}</Link></div>}
   </>;
 }

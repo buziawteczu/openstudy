@@ -136,6 +136,30 @@ describe("Flashcards route", () => {
     act(() => { fireEvent.click(again); fireEvent.click(know); }); await stored(1);
     expect(await raw("flashcardProgress")).toHaveLength(1); expect(screen.getByText("Card 2 of 2")).toBeVisible();
   });
+  it.each(["Again", "Know it"])("ignores a second pointer click landing on Exit session after %s", async (rating) => {
+    const user = await begin(); await user.click(screen.getByRole("button", { name: "Reveal answer" }));
+    await user.click(screen.getByRole("button", { name: rating }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Capital of the USA?" })).toHaveFocus());
+    fireEvent.click(screen.getByRole("link", { name: "Exit session" }), { detail: 2 });
+    expect(screen.getByText("Card 2 of 2")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Correct answer" })).not.toBeInTheDocument();
+    await stored(1); expect(await raw("flashcardProgress")).toHaveLength(1);
+    await user.tab(); await user.tab();
+    expect(screen.getByRole("link", { name: "Exit session" })).toHaveFocus();
+    await user.keyboard("{Enter}"); expect(await screen.findByText("Saved on this device")).toBeVisible();
+  });
+  it("ignores second pointer clicks on completion controls while allowing keyboard activation", async () => {
+    const user = await oneCard(); await user.click(screen.getByRole("button", { name: "Reveal answer" }));
+    await user.click(screen.getByRole("button", { name: "Again" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Session complete" })).toHaveFocus());
+    fireEvent.click(screen.getByRole("button", { name: "Study again" }), { detail: 2 });
+    fireEvent.click(screen.getByRole("link", { name: "Back to study set" }), { detail: 2 });
+    expect(screen.getByRole("heading", { name: "Session complete" })).toBeVisible();
+    await stored(1);
+    await user.tab(); expect(screen.getByRole("button", { name: "Study again" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Flashcards “Cities”" })).toHaveFocus());
+  });
   it("double-clicking Reveal does not rate the card", async () => {
     const user = await begin(); await user.dblClick(screen.getByRole("button", { name: "Reveal answer" }));
     expect(screen.getByRole("heading", { name: "Correct answer" })).toBeVisible(); expect(await raw("flashcardProgress")).toEqual([]);

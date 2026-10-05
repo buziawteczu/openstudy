@@ -58,7 +58,7 @@ describe("Flashcards route", () => {
     expect(screen.getByRole("link", { name: "Flashcards" })).toHaveClass("action");
     expect(screen.getByRole("link", { name: "Learn" })).toHaveClass("action");
     expect(screen.getByRole("link", { name: "Add material" })).not.toHaveClass("action");
-    expect(screen.queryByRole("link", { name: "Test" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Test" })).toHaveAttribute("href", "/study-sets/set.cities/test");
     await userEvent.setup().click(screen.getByRole("link", { name: "Flashcards" }));
     await waitFor(() => expect(screen.getByRole("heading", { name: "Flashcards “Cities”" })).toHaveFocus());
   });

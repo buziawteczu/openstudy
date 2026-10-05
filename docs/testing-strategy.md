@@ -5,7 +5,7 @@
 Testing should protect the open data contract, deterministic behavior, progress integrity, and critical user workflows. It should not duplicate every assertion at every layer.
 
 The implemented suites now cover the canonical schema, import/review, Add Material,
-Learn and Flashcard transitions, IndexedDB layout upgrades and separate progress integrity, plus focused
+Learn, Flashcard and Test transitions, IndexedDB layout upgrades and separate progress integrity, plus focused
 browser flows. The remaining items below describe broader V1 goals.
 
 Flashcard unit tests cover category IDs, uncategorized selection, deterministic
@@ -27,6 +27,29 @@ and keyboard/double-click regressions run on 320px and desktop; long-content and
 duplicated at every width. Revealed content uses focused accessible headings with
 answer/explanation descriptions; hidden content is not mounted or announced.
 Manual screen-reader speech testing remains distinct from DOM/keyboard assertions.
+
+Test unit coverage verifies category identity and uncategorized eligibility, count
+validation, Fisher–Yates with injected randomness, shuffle-before-count, unique
+eligible IDs, unchanged choice order, and stable order through immutable transitions.
+Selections use Choice IDs, can change/clear and survive navigation without correctness
+fields or canonical text in active state. Submission is guarded, unanswered needs
+explicit permission and earns zero credit, scoring uses deterministic integer rounding,
+and ordered mistakes include wrong/unanswered only. Submitted sessions reject editing,
+navigation and resubmission; malformed inputs and StudySet immutability are checked.
+
+Test component/browser coverage checks setup/category/count/shuffle, hidden setup,
+native fieldset/radios, pre-submit DOM and accessible-name privacy, navigation and
+retained answers, unanswered confirmation/cancellation, results/review/restart, route
+errors, focus and keyboard behavior. Rapid/competing actions and double-click retargeting
+must not skip questions, submit twice, restart or leave Test. Before/after snapshots
+prove both progress stores, canonical content/revision and Library summary unchanged,
+and confirm layout 3 has only its existing four stores. Reload discards active Test,
+results and mistake review. Shuffle browser tests control randomness in the test only;
+they do not assume any production random sequence.
+
+Detailed Test flows run at 320px and desktop; long-content and 200% reflow screenshots
+use every existing viewport. Actual screen-reader speech and device touch comfort
+remain separate from automated semantic, focus, target-size and keyboard assertions.
 
 ## Unit tests
 

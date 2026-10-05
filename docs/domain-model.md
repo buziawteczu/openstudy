@@ -31,6 +31,8 @@ Changing progress must not mutate canonical questions. Generating a learning pla
 | UserProgress | Learner state keyed by stable content identity | V1 |
 | FlashcardProgress | Separate durable recall ratings keyed by stable content identity | Implemented |
 | FlashcardSession | Temporary ordered card/reveal/result state | Memory only |
+| TestSession | Temporary ordered questions, answer selections and navigation state | Memory only |
+| TestResult | Submitted correctness and mistake-review data | Memory only |
 | LearningPlan | Optional goals, sequencing, or schedule over existing content | Future |
 
 ## StudySet
@@ -229,6 +231,35 @@ revision, nor schemaVersion 1.0.0.
 Add Material retains both progress types through stable Question IDs, including
 exact duplicates. New questions have no progress. Deletion removes both progress
 types with the StudySet and its summary atomically.
+
+## TestSession and TestResult
+
+StudySet content, Learn UserProgress, FlashcardProgress and TestSession are distinct.
+The Test engine consumes validated canonical content without mutating it or producing
+either mode's progress events. Test introduces no durable progress/history model.
+
+TestSession holds PortableId studySetId, ordered questionIds, currentIndex, submitted,
+and an array of answers containing questionId and selectedChoiceId (PortableId or
+null). Stable IDs associate selections with their question independently of order.
+It copies no prompt, choices, explanation or correctness into active session state.
+Answers can change or clear before submission and remain selected during navigation.
+
+Creation filters by one canonical category (or All topics), optionally shuffles the
+entire eligible pool using Fisher–Yates and an injected random source, then takes
+the requested count. The chosen order stays fixed; choice order never changes.
+
+Only submission evaluates correctness. By default it rejects unanswered questions;
+an explicit confirmed submission can accept them. Submission locks further active
+selection/navigation and returns a separate TestResult with StudySet ID and ordered
+questionId, selectedChoiceId and correct records. Unanswered has selectedChoiceId
+null and correct false, but is presented separately from answered-incorrect.
+Summary counts total/correct/incorrect/unanswered and uses Math.round(correct /
+total * 100). Mistakes comprise wrong and unanswered in the original Test order.
+
+The web layer reads canonical content for post-submission answers/explanations.
+Neither session nor result contains timestamps, attempt IDs, best/average scores or
+history. Configuration, selections, order, results and review position are discarded
+on reload. Test changes neither StudySet revision/schema nor either progress model.
 
 ## LearningPlan
 

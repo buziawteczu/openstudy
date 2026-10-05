@@ -150,7 +150,7 @@ That is a likely destination, not scaffolding required before the first implemen
 
 ## Local-first V1
 
-V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets, source metadata, separate per-question Learn UserProgress and FlashcardProgress are saved on-device in IndexedDB. Learn and Flashcard sessions are memory-only. The web app uses a small native IndexedDB boundary without a storage framework.
+V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets, source metadata, separate per-question Learn UserProgress and FlashcardProgress are saved on-device in IndexedDB. Learn, Flashcard and Test sessions are memory-only. The web app uses a small native IndexedDB boundary without a storage framework.
 
 Flashcards render question → reveal → Again / Know it → next, in the normal
 focused shell. Correct answer text and optional explanation are mounted only after
@@ -165,6 +165,29 @@ retains cumulative local progress after failures, warns while unsaved, and stops
 writes for conflicted questions without blocking study. Add Material preserves
 both progress types by leaving their stores untouched; deletion removes all four
 stores' associated records atomically. Flashcards never revise canonical content.
+
+Test adds a focused pure module to @openstudy/study rather than a generalized mode
+framework. It reuses canonical validation and category eligibility, and exposes
+immutable selection, clear, navigation and submission transitions. The web layer
+injects Math.random into Fisher–Yates at creation; tests inject deterministic values.
+Shuffle operates before count selection and never changes choices or an active
+session's order. Active state contains IDs/selections only. Submission alone creates
+temporary correctness results, rejects editing afterward, and derives rounded scores
+and ordered mistakes without generating progress events.
+
+The /study-sets/:id/test route reads through the existing migration/validation storage
+boundary, with standard loading/missing/incompatible/storage errors. It neither reads
+nor writes durable progress, and has no persistence adapter of its own. IndexedDB
+remains layout 3 with four stores. StudySet schemaVersion stays 1.0.0 and revision is
+unchanged. Results and mistake review disappear on reload.
+
+Test uses the normal narrow shell: setup disappears after Start, native radio choices
+retain selections during free navigation, and no correctness labels/styles/ARIA or
+explanations are rendered before final submission. An inline unanswered confirmation
+focuses Keep working and explicitly explains zero credit. Results precede read-only,
+one-question mistake review. Synchronous transition refs and repeated-click guards
+protect navigation, submission, restart and links after layout changes; focused
+headings announce explicit view changes without stealing focus on answer selection.
 
 Local-first means:
 

@@ -55,8 +55,8 @@ The value is not "any file becomes perfect questions automatically." The value i
 Intended modes are:
 
 - Learn: show one question and allow answer selection. A wrong answer never reveals the correct answer or explanation; the learner can clear or change the selection and retry until correct. The first wrong attempt marks the question for review; a later first-try correct encounter clears that flag. First-attempt correctness is tracked separately from eventual correctness. The session is temporary, while checked-answer progress persists locally.
-- Flashcards: show the question, reveal the answer on request, then choose `Again` or `Know it`.
-- Test: configure question count and optional category selection, shuffle questions, withhold correctness feedback until the end, show results, then review mistakes.
+- Flashcards (implemented): question → Reveal answer → `Again` / `Know it` → next card. The correct answer and optional explanation are hidden before reveal; alternative choices are not rendered. Configuration disappears during study. All topics includes uncategorized questions; one category uses canonical IDs. Cards follow saved order, with a default of up to 20 and a validated count. Both ratings persist separate FlashcardProgress and advance immediately. Again requests future review without requeueing in this session; Know it records current recall without removing content. No correctness grade or spaced repetition is created. Sessions are temporary; the summary shows only reviewed, Know it, and Again counts.
+- Test (future, not implemented): configure question count and optional category selection, shuffle questions, withhold correctness feedback until the end, show results, then review mistakes.
 
 Complex confidence scales and mastery algorithms are not required for V1.
 
@@ -67,7 +67,7 @@ Complex confidence scales and mastery algorithms are not required for V1.
 3. Detect exact duplicates deterministically.
 4. Present possible duplicates or changed questions for review.
 5. Commit an explicit StudySet revision.
-6. Preserve progress for questions whose identity is retained and identify newly added questions.
+6. Preserve Learn UserProgress and FlashcardProgress for questions whose identity is retained, including exact duplicates; new questions have neither. Deleting a StudySet removes both progress types.
 
 The workflow must not silently overwrite existing questions. Exact revision and question-change semantics remain open design questions.
 

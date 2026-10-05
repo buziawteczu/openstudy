@@ -2,12 +2,12 @@
 
 A local-first, mobile-friendly study tool. The current application foundation
 contains a local StudySet Library, local DOCX/text-PDF/JSON/ZIP ingestion,
-explicit structured mapping/validation, document-question review, Learn mode, and a not-found page.
+explicit structured mapping/validation, document-question review, Learn and Flashcards modes, and a not-found page.
 JSON/ZIP field mapping and DOCX/text-PDF existing-question review produce an
 all-valid canonical candidate that can be saved to IndexedDB. Document notes stop
 at extracted content: creating questions from notes is not supported. A saved
 StudySet can also receive new material through an exact-match merge preview and
-an explicit update. Flashcards and Test are not implemented yet. See the
+an explicit update. Test is not implemented yet. See the
 [import pipeline](docs/import-pipeline.md) for supported shapes and safety limits.
 
 ## Repository
@@ -16,7 +16,7 @@ an explicit update. Flashcards and Test are not implemented yet. See the
 - `packages/schema`: canonical StudySet validation, migrations, and JSON Schema.
 - `packages/import-core`: neutral structured/document contracts, record-array discovery, document normalization, and inspection; no file APIs or canonical mapping.
 - `packages/structured-mapping`: `@openstudy/mapping`, pure explicit field mapping, document-question grouping/review transformations, issues, and canonical candidate validation.
-- `packages/study`: `@openstudy/study`, pure Learn session transitions and validated UserProgress rules.
+- `packages/study`: `@openstudy/study`, pure Learn/Flashcard session transitions and separate validated progress rules.
 - `docs`: product and architecture contracts.
 
 ## Development
@@ -41,7 +41,7 @@ npm run verify
 ```
 
 These commands cover all workspaces. `verify` runs typecheck, schema, import-core, mapping,
-and frontend tests, all builds, and JSON Schema freshness checking.
+study and frontend tests, all builds, and JSON Schema freshness checking.
 `npm run check:json-schema` and `npm run generate:json-schema` still target the
 schema package.
 
@@ -57,14 +57,14 @@ The suite starts and stops its own preview server on port 4173. It checks
 navigation, direct routes, keyboard focus, local DOCX/PDF/JSON/ZIP ingestion,
 structured mapping/validation/issue inspection, existing-question document review,
 notes intent, inline corrections/exclusion, local Library save/reload/delete, Learn answer/retry,
-progress persistence and cleanup, reset/errors, 200% text scaling, and layout at widths
+Flashcard reveal/rating, separate progress persistence and cleanup, reset/errors, 200% text scaling, and layout at widths
 320, 375, 390, 768, 1440, and 1920px. Local visual captures and failure traces are written to
 the ignored `apps/web/test-results/` directory.
 
 Supported inputs are DOCX, PDF with selectable text, JSON, and ZIP containing
 JSON. Scanned/image-only PDFs, OCR and legacy DOC are unsupported. Processing
 stays on-device. A validated canonical StudySet, its Library summary, and separate
-per-question UserProgress are saved. Active Learn sessions, raw files, source rows,
+per-question Learn UserProgress and FlashcardProgress are saved. Active study sessions, raw files, source rows,
 extraction blocks and review state are not retained. Deterministic document grouping recognizes narrow
 existing-question structures; users check source wording and correct ambiguity.
 No AI, semantic answer inference or generated questions. Extraction limitations
@@ -72,6 +72,24 @@ and safety budgets are in the import pipeline.
 
 GitHub CI runs verification and a separate Chromium E2E job on pull requests
 and pushes to `main`. No deployment is configured.
+
+## Flashcards
+
+Open a saved StudySet and choose Flashcards, one optional topic, and a card count.
+Cards use saved order, with a default of up to 20. Each card shows only the question
+until Reveal answer; the correct answer and optional explanation are absent from
+the rendered content before reveal. Again or Know it records a self-rating and
+immediately advances. Again means future review, with no current-session requeue
+or spaced repetition; neither rating creates a Learn attempt or correctness result.
+The summary counts cards reviewed, Know it, and Again, without a score.
+
+FlashcardProgress stores only stable StudySet/Question IDs, review counters, and
+the last rating in a separate IndexedDB store. Layout v3 preserves v1/v2 data;
+StudySet schemaVersion stays 1.0.0 and studying never changes its revision.
+Active sessions and configuration are temporary; reload returns to setup.
+Add Material preserves both progress types through stable Question IDs, and
+deleting a StudySet atomically removes both. Failed writes show a warning while
+study remains usable; stale writes cannot overwrite newer progress.
 
 ## Frontend layout
 
@@ -94,5 +112,5 @@ live in the stylesheet's component and base layers. Source scanning is scoped
 to the frontend `src` directory, independent of the workspace command location.
 No separate Tailwind JavaScript or PostCSS configuration is needed.
 
-History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, `/study-sets/:id/learn`, and a fallback for unknown paths. A future
+History routing uses `/`, `/import`, `/study-sets/:id`, `/study-sets/:id/add-material`, `/study-sets/:id/learn`, `/study-sets/:id/flashcards`, and a fallback for unknown paths. A future
 static host must serve `index.html` for application routes so direct links work.

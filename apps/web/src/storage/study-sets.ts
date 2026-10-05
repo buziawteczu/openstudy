@@ -120,14 +120,16 @@ export function createStudySetStorage(name = DATABASE_NAME) {
     let db: IDBDatabase;
     try { db = await database(); } catch { return failure("storage-unavailable"); }
     try {
-      const tx = db.transaction(["studySets", "libraryEntries", "userProgress"], "readwrite");
+      const tx = db.transaction(["studySets", "libraryEntries", "userProgress", "flashcardProgress"], "readwrite");
       const done = transactionDone(tx);
       try {
         tx.objectStore("studySets").delete(id);
         tx.objectStore("libraryEntries").delete(id);
-        const progress = tx.objectStore("userProgress");
-        const keys = await requestValue(progress.index("studySetId").getAllKeys(id));
-        for (const key of keys) progress.delete(key);
+        for (const storeName of ["userProgress", "flashcardProgress"]) {
+          const progress = tx.objectStore(storeName);
+          const keys = await requestValue(progress.index("studySetId").getAllKeys(id));
+          for (const key of keys) progress.delete(key);
+        }
       } catch { tx.abort(); await done.catch(() => undefined); return failure("delete-failed"); }
       await done;
       return success(undefined);

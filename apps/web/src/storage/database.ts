@@ -1,6 +1,6 @@
 export const DATABASE_NAME = "openstudy-library";
 // IndexedDB layout version, independent of canonical StudySet.schemaVersion.
-export const DATABASE_VERSION = 2;
+export const DATABASE_VERSION = 3;
 
 export function requestValue<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -34,6 +34,10 @@ export function getLibraryDatabase(name = DATABASE_NAME) {
           if (!db.objectStoreNames.contains("libraryEntries")) db.createObjectStore("libraryEntries", { keyPath: "id" });
           if (!db.objectStoreNames.contains("userProgress")) {
             const progress = db.createObjectStore("userProgress", { keyPath: ["studySetId", "questionId"] });
+            progress.createIndex("studySetId", "studySetId");
+          }
+          if (!db.objectStoreNames.contains("flashcardProgress")) {
+            const progress = db.createObjectStore("flashcardProgress", { keyPath: ["studySetId", "questionId"] });
             progress.createIndex("studySetId", "studySetId");
           }
         };

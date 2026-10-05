@@ -104,7 +104,7 @@ workspace: neutral reviewed content becoming canonical content is already its
 responsibility. Import-core remains schema/semantic-free, document parsers stay
 in the web layer, and document rules do not enter canonical schema 1.0.0.
 
-The canonical model makes the question type explicit. Learn now implements single-choice behavior in `@openstudy/study`: pure session transitions consume canonical Question/Choice IDs and yield checked-answer events for progress updates. The web adapter persists UserProgress separately. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
+The canonical model makes the question type explicit. Learn implements single-choice behavior in `@openstudy/study`: pure session transitions consume canonical Question/Choice IDs and yield checked-answer events for progress updates. The web adapter persists UserProgress separately. Flashcards reuse canonical validation and category selection, with their own pure create/reveal/rate transitions and FlashcardProgress contract. Session state holds stable Question IDs, never full questions or answers. A rating yields a separate recall event and advances immediately; it never becomes a checked Learn answer. Future question variants may be added through schema evolution and corresponding study-engine support; adapters cannot invent a new runtime shape and pass it directly to the engine.
 
 The canonical boundary includes validation results and schema-version handling, but it does not erase provenance. Schema 1.0.0 keeps a minimal provenance array on each Question: a canonical source reference plus optional source-defined external ID and opaque source-local locator. Detailed source and document metadata remains upstream, and the study engine never interprets the locator.
 
@@ -150,7 +150,21 @@ That is a likely destination, not scaffolding required before the first implemen
 
 ## Local-first V1
 
-V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets, source metadata, and separate per-question UserProgress are saved on-device in IndexedDB. The active Learn session is memory-only. The web app uses a small native IndexedDB boundary without a storage framework.
+V1 has no account, authentication, backend database, or cloud storage. Canonical StudySets, source metadata, separate per-question Learn UserProgress and FlashcardProgress are saved on-device in IndexedDB. Learn and Flashcard sessions are memory-only. The web app uses a small native IndexedDB boundary without a storage framework.
+
+Flashcards render question → reveal → Again / Know it → next, in the normal
+focused shell. Correct answer text and optional explanation are mounted only after
+reveal; other choices are not rendered. Reveal makes no durable write. Ratings
+advance without a Continue step or requeue, and completion shows rating counts
+without a score. There is no scheduling or shared mode review filtering.
+
+Layout v3 adds flashcardProgress without altering existing content or Learn stores.
+Its separate adapter uses the shared connection, validates canonical references,
+and compares expectedReviews inside the write transaction. The UI queues writes,
+retains cumulative local progress after failures, warns while unsaved, and stops
+writes for conflicted questions without blocking study. Add Material preserves
+both progress types by leaving their stores untouched; deletion removes all four
+stores' associated records atomically. Flashcards never revise canonical content.
 
 Local-first means:
 

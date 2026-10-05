@@ -16,18 +16,31 @@ This is both a product choice and an architectural boundary. Local-first reduces
 ## Local persistence direction
 
 IndexedDB now stores canonical StudySets through a small web storage module.
-Database `openstudy-library` uses layout version `2`, with `studySets` and
-`libraryEntries` stores keyed by the canonical StudySet ID, plus `userProgress`
-keyed by `[studySetId, questionId]` and indexed by `studySetId`. Upgrading a
-layout v1 database preserves its existing StudySets and summaries. The layout version
+Database `openstudy-library` uses layout version `3`, with `studySets` and
+`libraryEntries` stores keyed by the canonical StudySet ID, plus separate `userProgress`
+and `flashcardProgress` stores keyed by `[studySetId, questionId]` and indexed by
+`studySetId`. Upgrades from v1 or v2 add missing stores without recreating existing
+ones; existing StudySets, summaries, and Learn progress survive. The layout version
 is independent of canonical `StudySet.schemaVersion` (`1.0.0`). Save and delete
-update both stores in one transaction; list reads summaries only. Entries sort
+update the relevant stores in one transaction; list reads summaries only. Entries sort
 by title using code-unit order, then ID for ties. Reads use the existing schema
 migration and final validation path without automatically writing back migrated
 data. The original JSON/ZIP/DOCX/PDF files, extracted blocks, mapping and review
 sessions are not stored. Validated per-question UserProgress is stored only after
-an answer is checked. Active Learn session configuration, position, and selection
-are not stored. There is no localStorage fallback.
+an answer is checked. FlashcardProgress is stored only after an Again / Know it
+rating; reveal writes nothing. Correct answer/explanation are not rendered before
+reveal. Active Learn and Flashcard configuration, position, reveal/selection state,
+and session results are not stored. There is no localStorage fallback.
+
+FlashcardProgress contains only IDs, reviews, againCount, knowItCount, and lastRating.
+It is separate from Learn correctness and has no timestamps, due dates, intervals,
+or spaced repetition. Both ratings advance immediately without current-session
+requeue. The storage adapter validates incoming and existing progress and the
+canonical StudySet/question, then compares stored reviews with expectedReviews
+inside one readwrite transaction. Stale snapshots return progress-conflict without
+overwriting. Failed saves leave study usable with a persistent warning; later
+cumulative writes use the last successful baseline, while conflicted questions
+are not silently retried from stale state.
 
 Add Material reads the saved StudySet through the same compatibility boundary.
 Its incoming candidate and merge preview remain in memory. The final update
@@ -36,15 +49,17 @@ StudySet and derived summary together. A stale revision, missing or incompatible
 record, or failed write leaves the previous record intact. Each successful update
 increments the positive safe integer revision once. Only the current revision is
 kept; there is no merge history or undo store.
-Add Material does not touch UserProgress: retained Question IDs keep their progress,
-and new questions begin without it. Deleting a StudySet removes its summary and
-associated progress in one transaction. Learning never increments StudySet.revision.
+Add Material does not touch UserProgress or FlashcardProgress: retained Question IDs,
+including exact duplicates, keep both progress types, and new questions begin
+without either. Deleting a StudySet removes its summary and both progress types
+in one transaction. Neither Learn nor Flashcards increments StudySet.revision
+or changes schemaVersion 1.0.0.
 
 Persistence should keep separable records for:
 
 - canonical StudySet content and revision metadata;
 - source and provenance metadata required after import;
-- UserProgress;
+- Learn UserProgress and separate FlashcardProgress;
 - active session state, if crash recovery requires it;
 - future LearningPlans;
 - optional source documents or media only if the retention policy permits them.

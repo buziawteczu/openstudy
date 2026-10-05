@@ -5,8 +5,28 @@
 Testing should protect the open data contract, deterministic behavior, progress integrity, and critical user workflows. It should not duplicate every assertion at every layer.
 
 The implemented suites now cover the canonical schema, import/review, Add Material,
-Learn transitions, IndexedDB layout upgrade and progress integrity, plus focused
+Learn and Flashcard transitions, IndexedDB layout upgrades and separate progress integrity, plus focused
 browser flows. The remaining items below describe broader V1 goals.
+
+Flashcard unit tests cover category IDs, uncategorized selection, deterministic
+count/order, unrevealed content-free state, reveal without progress, rating guards,
+automatic advancement, completion/count summaries, immutability, strict counters,
+lastRating, malformed records and overflow. Storage tests cover actual v1 → v3 and
+v2 → v3 upgrades, retained records and store/index/key layout, reopening, stale and
+concurrent writers, cumulative recovery, canonical references, exact-duplicate Add
+Material preservation, and atomic four-store deletion/rollback. Learn progress and
+canonical content are compared before/after Flashcards for byte-for-byte equality.
+
+Component tests cover setup, hidden DOM answers/explanation/ratings, reveal,
+both ratings, next-card reset, summary/Study again, loading errors/retry, warnings,
+conflicts, delayed saves, double/competing activations, and keyboard/focus.
+Focused Playwright flows exercise happy path/reveal privacy, reload persistence,
+real Learn independence, Add Material preservation and deletion. The study journey
+and keyboard/double-click regressions run on 320px and desktop; long-content and
+200% reflow checks use all existing viewport projects. Lifecycle flows are not
+duplicated at every width. Revealed content uses focused accessible headings with
+answer/explanation descriptions; hidden content is not mounted or announced.
+Manual screen-reader speech testing remains distinct from DOM/keyboard assertions.
 
 ## Unit tests
 

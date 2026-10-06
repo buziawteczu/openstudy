@@ -21,7 +21,7 @@ export function AppShell() {
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
-      <header className="border-b border-border py-6">
+      <header className="app-header">
         <Link
           className="inline-flex min-h-[44px] items-center gap-3 rounded-small text-lg leading-[1.6] font-[650] tracking-[-0.03em] text-text no-underline"
           to="/"
@@ -33,10 +33,10 @@ export function AppShell() {
           <span>OpenStudy</span>
         </Link>
       </header>
-      <main id="main-content" className="flex-1 pt-page-top pb-12" ref={mainRef} tabIndex={-1}>
+      <main id="main-content" className="app-main flex-1" ref={mainRef} tabIndex={-1}>
         <Outlet />
       </main>
-      <footer className="border-t border-border py-6 text-small text-muted">
+      <footer className="app-footer">
         A quiet place to learn.
       </footer>
     </div>

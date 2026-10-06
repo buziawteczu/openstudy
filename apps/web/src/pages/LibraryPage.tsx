@@ -17,10 +17,12 @@ export function LibraryPage() {
 
   return <>
     <title>Library | OpenStudy</title>
-    <div className="mb-8">
-      <p className="eyebrow">Library</p>
-      <h1 tabIndex={-1}>Your study sets</h1>
-      <p className="mt-3 max-w-[46ch] text-muted">Study sets are stored in this browser on this device.</p>
+    <div className="page-heading library-heading">
+      <div>
+        <h1 tabIndex={-1}>Your study sets</h1>
+        <p className="mt-2 text-muted">Pick a set and make time to study.</p>
+      </div>
+      {state.kind === "ready" && state.entries.length > 0 && <Link className="button button-secondary" to="/import">Import study material</Link>}
     </div>
     {state.kind === "loading" && <p role="status">Loading your library…</p>}
     {state.kind === "error" && <section role="alert" className="rounded-surface border border-border bg-surface p-card">
@@ -29,22 +31,21 @@ export function LibraryPage() {
       <Link className="action" to="/import">Import study material</Link>
     </section>}
     {state.kind === "ready" && (state.entries.length === 0 ? <section
-      className="rounded-surface border border-border bg-surface p-card text-center" aria-labelledby="empty-state-title">
+      className="library-empty" aria-labelledby="empty-state-title">
       <span className="mx-auto mb-6 grid size-[56px] place-items-center rounded-surface bg-accent-soft text-accent"><BookIcon /></span>
       <h2 id="empty-state-title">No study sets yet</h2>
-      <p className="mx-auto mt-3 max-w-[40ch] text-muted">Bring your own study material and turn it into something you can learn from.</p>
-      <Link className="action" to="/import">Import study set <span aria-hidden="true">→</span></Link>
+      <p className="mx-auto mt-3 max-w-[40ch] text-muted">Import questions or study material to create your first set.</p>
+      <Link className="button button-primary mt-6" to="/import">Import study material</Link>
     </section> : <>
       <ul className="library-list">
         {state.entries.map((entry) => <li key={entry.id}>
           <Link className="library-card" to={`/study-sets/${encodeURIComponent(entry.id)}`}>
             <span className="library-card-title">{entry.title}</span>
             <span className="text-muted">{entry.questionCount} {entry.questionCount === 1 ? "question" : "questions"} · {entry.categoryCount} {entry.categoryCount === 1 ? "category" : "categories"}</span>
-            <span className="library-card-open">Open <span aria-hidden="true">→</span></span>
           </Link>
         </li>)}
       </ul>
-      <Link className="action" to="/import">Import study material</Link>
     </>)}
+    {state.kind === "ready" && <p className="library-storage-note">Study sets are stored in this browser on this device.</p>}
   </>;
 }

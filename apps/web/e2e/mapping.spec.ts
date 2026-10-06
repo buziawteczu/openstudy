@@ -64,7 +64,7 @@ test("JSON collection selection, explicit mapping, validation and ready state", 
   await page.getByRole("link", { name: "Back to library" }).click();
   await expect(page.getByRole("region", { name: "No study sets yet" })).toBeVisible();
   expect(await page.locator(".app-shell").evaluate((element) => element.getBoundingClientRect().width)).toBeLessThanOrEqual(720);
-  await page.getByRole("link", { name: "Import study set" }).click();
+  await page.getByRole("link", { name: "Import study material" }).click();
   await expect(page.getByRole("region", { name: "Structured mapping" })).toHaveCount(0);
   expect(requests).toEqual([]);
   await page.context().unroute("**/*");

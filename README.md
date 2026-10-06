@@ -119,6 +119,20 @@ Pages share a centered canvas with a `45rem` maximum width (about 720px at the
 default font size), fluid gutters, and a single column. Desktop space provides
 breathing room; the canvas has no device frame.
 
+Library cards open saved sets, with Learn, Flashcards and Test grouped above
+sources and management actions. Shared setup controls keep category and count
+compact. Active study uses a narrower `40rem` canvas: the global header and footer
+give way to an Exit session link, visible question position and a progress bar.
+This focused shell continues through summaries, Test results and mistake review;
+returning to setup restores the ordinary app shell.
+
+Learn and Test use large native radio answer rows with display-only letter markers.
+Selected answers use the accent color; Learn feedback also uses explicit text.
+Flashcard answers remain absent before Reveal, and Test correctness remains absent
+before submission. These presentation components do not own session behavior or
+write progress. Semantic tokens, consistent button variants and visible focus
+styles support touch, keyboard operation, long content and text reflow.
+
 Only an active structured mapping workflow widens the canvas to `78rem` (about
 1248px). Source, mapping controls, and preview form a desktop workspace above
 `68rem`; narrower screens use an ordered vertical flow. Document question review

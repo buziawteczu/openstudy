@@ -33,7 +33,7 @@ describe("saved Library", () => {
     expect(links).toHaveLength(2);
     expect(links[0]).toHaveAttribute("href", "/study-sets/os%3Arailway.one");
     await userEvent.setup().click(links[0]!);
-    expect(await screen.findByRole("heading", { level: 2, name: "Sources" })).toBeInTheDocument();
+    await userEvent.setup().click(await screen.findByText("Sources", { selector: "summary" }));
     expect(screen.getByText("questions.json")).toBeInTheDocument();
     expect(screen.getByText("Saved on this device")).toBeInTheDocument();
   });

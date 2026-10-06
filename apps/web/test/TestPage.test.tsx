@@ -69,7 +69,10 @@ function expectNoFeedback() {
 describe("Test mode", () => {
   it("exposes three real primary study modes and keeps Add material secondary", async () => {
     const user = userEvent.setup(); renderAt("/study-sets/set.cities"); await screen.findByText("Saved on this device");
-    for (const mode of ["Learn", "Flashcards", "Test"]) expect(screen.getByRole("link", { name: mode })).toHaveClass("action");
+    for (const mode of ["Learn", "Flashcards", "Test"]) {
+      expect(screen.getByRole("region", { name: "Study" })).toContainElement(screen.getByRole("link", { name: mode }));
+      expect(screen.getByRole("link", { name: mode })).toHaveAccessibleDescription();
+    }
     expect(screen.getByRole("link", { name: "Test" })).toHaveAttribute("href", route);
     expect(screen.getByRole("link", { name: "Add material" })).not.toHaveClass("action");
     await user.click(screen.getByRole("link", { name: "Test" }));

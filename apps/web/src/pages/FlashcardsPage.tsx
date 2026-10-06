@@ -6,6 +6,8 @@ import { Link, useParams } from "react-router";
 import { studySetStorage } from "../storage/study-sets.js";
 import { flashcardProgressStorage } from "../storage/flashcard-progress.js";
 
+import { StudyProgress, StudySessionFrame, StudySetup } from "../components/study/StudyPresentation.js";
+
 type LoadState = { kind: "loading" } | { kind: "ready"; studySet: StudySet; progress: FlashcardProgress[]; focusHeading: boolean } |
   { kind: "missing" | "incompatible" | "error" } | { kind: "progress-error" };
 
@@ -133,62 +135,56 @@ function FlashcardExperience({ studySet, initialProgress, focusHeading }: { stud
       if (mounted.current) setWarning(unsaved.current.size > 0);
     });
   }
-  return <>
-    <title>Flashcards · {studySet.title} | OpenStudy</title>
-    <p className="eyebrow">Flashcards</p>
-    {!session ? <>
-      <h1 ref={setupHeading} tabIndex={-1}>Flashcards “{studySet.title}”</h1>
-      <p className="mt-3 text-muted">Recall the answer, reveal it, then choose Again or Know it. Cards appear in their saved order.</p>
-      <div className="mt-8 max-w-xl">
-        <label htmlFor="flashcard-category" className="font-semibold">Topic / category</label>
-        <select id="flashcard-category" className="mapping-control" value={categoryId ?? ""} onChange={(event) => {
-          const next = event.currentTarget.value || null;
-          setCategoryId(next); setCount(String(Math.min(20, eligibleQuestions(studySet, next).length)));
-        }}>
-          <option value="">All topics</option>
-          {studySet.categories.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
-        </select>
-        <p className="mt-2 text-small text-muted">{eligible.length} {eligible.length === 1 ? "card" : "cards"} available</p>
-        <label htmlFor="flashcard-count" className="mt-6 block font-semibold">Cards</label>
-        <input id="flashcard-count" className="mapping-control" type="number" min={1} max={eligible.length} step={1} value={count}
-          aria-invalid={!countValid || undefined} aria-describedby="flashcard-count-help" onChange={(event) => setCount(event.currentTarget.value)} />
-        <p id="flashcard-count-help" className="mt-2 text-small text-muted">{eligible.length === 0 ? "No cards belong to this topic. Choose another topic." : `Choose a whole number from 1 to ${eligible.length}.`}</p>
-        {!countValid && eligible.length > 0 && <p className="mt-2 text-danger">Enter a valid card count to start.</p>}
-        <button type="button" className="action" disabled={!countValid} onClick={start}>Start flashcards</button>
-      </div>
-    </> : session.completed ? <>
+  const content = <>
+    {!session ? <StudySetup mode="Flashcards" title={studySet.title} headingRef={setupHeading} prefix="flashcard"
+      description="Recall the answer, reveal it, then rate yourself. Cards appear in their saved order."
+      categories={studySet.categories} categoryId={categoryId} onCategoryChange={(event) => {
+        const next = event.currentTarget.value || null;
+        setCategoryId(next); setCount(String(Math.min(20, eligibleQuestions(studySet, next).length)));
+      }} count={count} onCountChange={(event) => setCount(event.currentTarget.value)} countInvalid={!countValid}
+      available={eligible.length} unit="card"
+      countHelp={eligible.length === 0 ? "No cards belong to this topic. Choose another topic." : `Choose a whole number from 1 to ${eligible.length}.`}
+      countError={!countValid && eligible.length > 0 ? "Enter a valid card count to start." : undefined}>
+      <button type="button" className="button button-primary" disabled={!countValid} onClick={start}>Start flashcards</button>
+    </StudySetup> : session.completed ? <section className="session-summary">
       <h1 ref={completeHeading} tabIndex={-1}>Session complete</h1>
-      <p className="mt-5 text-lg">{summary!.reviewed} {summary!.reviewed === 1 ? "card" : "cards"} reviewed</p>
-      <p className="mt-3">{summary!.knowIt} Know it</p>
-      <p>{summary!.again} Again</p>
-      <div className="mt-5 flex flex-wrap items-center gap-x-5">
-        <button type="button" className="action" onClick={(event) => {
+      <p className="summary-total">{summary!.reviewed} {summary!.reviewed === 1 ? "card" : "cards"} reviewed</p>
+      <div className="summary-counts"><p>{summary!.knowIt} Know it</p><p>{summary!.again} Again</p></div>
+      <div className="summary-actions">
+        <button type="button" className="button button-primary" onClick={(event) => {
           if (event.detail <= 1) { commit(null); focus("setup"); }
         }}>Study again</button>
-        <Link className="back-link" to={path} onClick={ignoreRepeatedNavigationClick}>Back to study set</Link>
+        <Link className="button button-quiet" to={path} onClick={ignoreRepeatedNavigationClick}>Back to study set</Link>
       </div>
-    </> : question ? <section className="max-w-xl" aria-labelledby="flashcard-question-title" key={question.id}>
-      <p id="flashcard-position" className="text-small font-semibold text-muted">Card {session.currentIndex + 1} of {session.questionIds.length}</p>
-      <div className="mt-5 min-w-0 rounded-surface border border-border bg-surface p-5 sm:p-8 [overflow-wrap:anywhere]">
+    </section> : question ? <section aria-labelledby="flashcard-question-title" key={question.id}>
+      <StudyProgress id="flashcard-position" label="Card" current={session.currentIndex + 1} total={session.questionIds.length} />
+      <div className="study-card flashcard-card">
         <h1 id="flashcard-question-title" ref={questionHeading} tabIndex={-1} aria-describedby="flashcard-position">{question.prompt}</h1>
-        {!session.revealed ? <button key="reveal" type="button" className="action" onClick={(event) => {
+        {!session.revealed ? <button key="reveal" type="button" className="button button-primary study-primary" onClick={(event) => {
           if (event.detail <= 1) reveal(question.id);
-        }}>Reveal answer</button> : <div key="revealed" className="mt-8">
-          <h2 ref={answerHeading} tabIndex={-1} aria-describedby={`flashcard-answer${question.explanation ? " flashcard-explanation" : ""}`}>Correct answer</h2>
-          <p id="flashcard-answer" className="mt-3 text-lg font-semibold">{question.choices.find((choice) => choice.id === question.correctChoiceId)!.text}</p>
-          {question.explanation && <p id="flashcard-explanation" className="mt-4 text-muted">{question.explanation}</p>}
-          <div className="mt-6 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,7rem),1fr))]">
-            <button type="button" className="min-h-12 rounded-small border border-accent px-3 py-3 font-semibold text-accent" disabled={ratingGuard.current} onClick={(event) => {
+        }}>Reveal answer</button> : <div key="revealed" className="flashcard-reveal">
+          <div className="answer-block answer-block-correct">
+            <h2 ref={answerHeading} tabIndex={-1} aria-describedby={`flashcard-answer${question.explanation ? " flashcard-explanation" : ""}`}>Correct answer</h2>
+            <p id="flashcard-answer" className="revealed-answer">{question.choices.find((choice) => choice.id === question.correctChoiceId)!.text}</p>
+          </div>
+          {question.explanation && <p id="flashcard-explanation" className="answer-explanation">{question.explanation}</p>}
+          <div className="rating-actions">
+            <button type="button" className="button button-secondary" disabled={ratingGuard.current} onClick={(event) => {
               if (event.detail <= 1) rate(question.id, "again");
             }}>Again</button>
-            <button type="button" className="min-h-12 rounded-small bg-accent px-3 py-3 font-semibold text-surface hover:bg-accent-hover" disabled={ratingGuard.current} onClick={(event) => {
+            <button type="button" className="button button-primary" disabled={ratingGuard.current} onClick={(event) => {
               if (event.detail <= 1) rate(question.id, "know-it");
             }}>Know it</button>
           </div>
         </div>}
       </div>
     </section> : <p role="alert">This card is no longer available. Return to the study set.</p>}
-    {warning && <p role="alert" className="mt-6 text-small text-danger">Your flashcard progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}
-    {(!session || !session.completed) && <div className="mt-8"><Link className="back-link" to={path} onClick={ignoreRepeatedNavigationClick}>{session ? "Exit session" : "Back to study set"}</Link></div>}
+    {warning && <p role="alert" className="feedback feedback-warning session-warning">Your flashcard progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}
+    {!session && <div className="mt-6"><Link className="button button-quiet" to={path} onClick={ignoreRepeatedNavigationClick}>Back to study set</Link></div>}
+  </>;
+  return <>
+    <title>Flashcards · {studySet.title} | OpenStudy</title>
+    {session ? <StudySessionFrame mode="Flashcards" title={studySet.title} exit={<Link className="button button-quiet" to={path}
+      onClick={ignoreRepeatedNavigationClick}>Exit session</Link>}>{content}</StudySessionFrame> : content}
   </>;
 }

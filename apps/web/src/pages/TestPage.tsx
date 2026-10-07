@@ -5,6 +5,8 @@ import { createTestSession, eligibleQuestions, selectTestAnswer, clearTestAnswer
 import { Link, useParams } from "react-router";
 import { studySetStorage } from "../storage/study-sets.js";
 
+import { AnswerOption, StudyProgress, StudySessionFrame, StudySetup } from "../components/study/StudyPresentation.js";
+
 type LoadState = { kind: "loading" } | { kind: "ready"; studySet: StudySet; focusHeading: boolean } |
   { kind: "missing" | "incompatible" | "error" };
 type ExperienceState = { view: "setup" } | { view: "active"; session: TestSession; confirming: boolean } |
@@ -123,107 +125,100 @@ function TestExperience({ studySet, focusHeading }: { studySet: StudySet; focusH
     if (index >= 0 && index < mistakes.length) transition({ ...state, mistakeIndex: index }, "mistake");
   }
 
-  return <>
-    <title>Test · {studySet.title} | OpenStudy</title>
-    <p className="eyebrow">Test</p>
-    {state.view === "setup" ? <>
-      <h1 ref={setupHeading} tabIndex={-1}>Test “{studySet.title}”</h1>
-      <p className="mt-3 text-muted">Choose your questions. Results appear only after you submit the whole test.</p>
-      <div className="mt-8 max-w-xl">
-        <label htmlFor="test-category" className="font-semibold">Topic / category</label>
-        <select id="test-category" className="mapping-control" value={categoryId ?? ""} onChange={(event) => {
-          const next = event.currentTarget.value || null;
-          const available = eligibleQuestions(studySet, next).length;
-          setCategoryId(next);
-          if (!countValid) setCount(String(Math.min(20, available)));
-          else if (numericCount > available) setCount(String(available));
-        }}>
-          <option value="">All topics</option>
-          {studySet.categories.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
-        </select>
-        <p className="mt-2 text-small text-muted">{eligible.length} {eligible.length === 1 ? "question" : "questions"} available</p>
-        <label htmlFor="test-count" className="mt-6 block font-semibold">Questions</label>
-        <input id="test-count" className="mapping-control" type="number" min={1} max={eligible.length} step={1} value={count}
-          aria-invalid={!countValid || undefined} aria-describedby="test-count-help" onChange={(event) => setCount(event.currentTarget.value)} />
-        <p id="test-count-help" className="mt-2 text-small text-muted">{eligible.length === 0 ? "No questions belong to this topic. Choose another topic." : `Choose a whole number from 1 to ${eligible.length}.`}</p>
-        {!countValid && eligible.length > 0 && <p className="mt-2 text-danger">Enter a valid question count to start.</p>}
-        <label className="mt-5 flex min-h-12 cursor-pointer items-center gap-3">
-          <input className="size-5 shrink-0 accent-accent" type="checkbox" checked={shuffle} onChange={(event) => setShuffle(event.currentTarget.checked)} />Shuffle questions
-        </label>
-        <button type="button" className="action" disabled={!countValid} onClick={(event) => { if (event.detail <= 1) start(); }}>Start test</button>
-        {startError && <p role="alert" className="mt-3 text-danger">OpenStudy couldn't start this test. Please try again.</p>}
-      </div>
-    </> : state.view === "active" && question ? <section className="max-w-xl [overflow-wrap:anywhere]" aria-labelledby="test-question-title" key={question.id}>
-      <p id="test-position" className="text-small font-semibold text-muted">Question {state.session.currentIndex + 1} of {state.session.questionIds.length}</p>
-      <div className="mt-5 min-w-0 rounded-surface border border-border bg-surface p-5 sm:p-8">
+  const content = <>
+    {state.view === "setup" ? <StudySetup mode="Test" title={studySet.title} headingRef={setupHeading} prefix="test"
+      description="Answer first. See your results when you're done."
+      categories={studySet.categories} categoryId={categoryId} onCategoryChange={(event) => {
+        const next = event.currentTarget.value || null;
+        const available = eligibleQuestions(studySet, next).length;
+        setCategoryId(next);
+        if (!countValid) setCount(String(Math.min(20, available)));
+        else if (numericCount > available) setCount(String(available));
+      }} count={count} onCountChange={(event) => setCount(event.currentTarget.value)} countInvalid={!countValid}
+      available={eligible.length} unit="question"
+      countHelp={eligible.length === 0 ? "No questions belong to this topic. Choose another topic." : `Choose a whole number from 1 to ${eligible.length}.`}
+      countError={!countValid && eligible.length > 0 ? "Enter a valid question count to start." : undefined}>
+      <label className="study-checkbox">
+        <input type="checkbox" checked={shuffle} onChange={(event) => setShuffle(event.currentTarget.checked)} />Shuffle questions
+      </label>
+      <button type="button" className="button button-primary" disabled={!countValid} onClick={(event) => { if (event.detail <= 1) start(); }}>Start test</button>
+      {startError && <p role="alert" className="feedback feedback-error">OpenStudy couldn't start this test. Please try again.</p>}
+    </StudySetup> : state.view === "active" && question ? <section aria-labelledby="test-question-title" key={question.id}>
+      <StudyProgress id="test-position" label="Question" current={state.session.currentIndex + 1} total={state.session.questionIds.length} />
+      <div className="study-card">
         <h1 id="test-question-title" ref={questionHeading} tabIndex={-1} aria-describedby="test-position">{question.prompt}</h1>
-        <fieldset className="mt-6 min-w-0" disabled={state.confirming}>
-          <legend className="font-semibold">Choose one answer</legend>
-          <div className="mt-3 grid gap-3">{question.choices.map((choice) => <label key={choice.id}
-            className="flex min-h-12 min-w-0 cursor-pointer items-start gap-3 rounded-small border border-border px-4 py-3">
-            <input type="radio" name="test-answer" className="mt-1.5 size-5 shrink-0 accent-accent" value={choice.id}
-              checked={selection === choice.id} onChange={() => select(choice.id)} />
-            <span className="min-w-0">{choice.text}</span>
-          </label>)}</div>
+        <fieldset className="study-answers" disabled={state.confirming}>
+          <legend>Choose one answer</legend>
+          <div className="answer-list">{question.choices.map((choice, index) => <AnswerOption key={choice.id}
+            id={choice.id} text={choice.text} index={index} name="test-answer" checked={selection === choice.id} onChange={() => select(choice.id)} />)}</div>
         </fieldset>
-        {selection && <button type="button" className="review-link mt-3" disabled={state.confirming}
+        {selection && <button type="button" className="button button-quiet clear-answer" disabled={state.confirming}
           onClick={(event) => { if (event.detail <= 1) select(null); }}>Clear answer</button>}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <button type="button" className="action mt-0 px-3" disabled={state.confirming || state.session.currentIndex === 0}
+        <div className="study-navigation">
+          <button type="button" className="button button-secondary" disabled={state.confirming || state.session.currentIndex === 0}
             onClick={(event) => { if (event.detail <= 1) navigate("previous"); }}>Previous</button>
           {state.session.currentIndex + 1 < state.session.questionIds.length ?
-            <button key="next" type="button" className="action mt-0 px-3" disabled={state.confirming}
+            <button key="next" type="button" className="button button-secondary" disabled={state.confirming}
               onClick={(event) => { if (event.detail <= 1) navigate("next"); }}>Next</button> :
-            <button key="finish" ref={finishButton} type="button" className="action mt-0 px-3" disabled={state.confirming}
+            <button key="finish" ref={finishButton} type="button" className="button button-secondary" disabled={state.confirming}
               onClick={(event) => { if (event.detail <= 1) finish(); }}>Finish test</button>}
         </div>
       </div>
       {state.confirming && <div role="group" aria-labelledby="test-confirmation-title" aria-describedby="test-confirmation-help"
-        className="mt-6 rounded-surface border border-border bg-surface p-5">
+        className="test-confirmation feedback feedback-warning">
         <h2 id="test-confirmation-title">{state.session.answers.filter((answer) => answer.selectedChoiceId === null).length} {state.session.answers.filter((answer) => answer.selectedChoiceId === null).length === 1 ? "question is" : "questions are"} unanswered.</h2>
-        <p id="test-confirmation-help" className="mt-3 text-muted">Unanswered questions receive no points. Submit this test?</p>
-        <div className="flex flex-wrap items-center gap-x-5">
-          <button ref={keepWorking} type="button" className="back-link" onClick={(event) => {
+        <p id="test-confirmation-help" className="mt-3">Unanswered questions receive no points. Submit this test?</p>
+        <div className="confirmation-actions">
+          <button ref={keepWorking} type="button" className="button button-secondary" onClick={(event) => {
             if (event.detail <= 1) transition({ ...state, confirming: false }, "finish");
           }}>Keep working</button>
-          <button type="button" className="action" onClick={(event) => { if (event.detail <= 1) finish(true); }}>Submit test</button>
+          <button type="button" className="button button-primary" onClick={(event) => { if (event.detail <= 1) finish(true); }}>Submit test</button>
         </div>
       </div>}
-    </section> : state.view === "results" && summary ? <>
+    </section> : state.view === "results" && summary ? <section className="session-summary">
       <h1 ref={resultHeading} tabIndex={-1}>Test complete</h1>
-      <p className="mt-5 text-3xl font-semibold">{summary.correct} / {summary.total}</p>
-      <p className="mt-2 text-xl">{summary.percentage}%</p>
-      <p className="mt-5">{summary.correct} correct</p><p>{summary.incorrect} incorrect</p><p>{summary.unanswered} unanswered</p>
-      <p className="mt-4 text-small text-muted">These results are temporary and aren't saved on this device.</p>
+      <p className="test-score">{summary.correct} / {summary.total}</p>
+      <p className="test-percentage">{summary.percentage}%</p>
+      <div className="summary-counts"><p>{summary.correct} correct</p><p>{summary.incorrect} incorrect</p><p>{summary.unanswered} unanswered</p></div>
+      <p className="summary-note">These results are temporary and aren't saved on this device.</p>
       {mistakes.length === 0 && <p className="mt-4">No mistakes to review.</p>}
-      <div className="mt-4 flex flex-wrap items-center gap-x-5">
-        {mistakes.length > 0 && <button type="button" className="action" onClick={(event) => {
+      <div className="summary-actions">
+        {mistakes.length > 0 && <button type="button" className="button button-primary" onClick={(event) => {
           if (event.detail <= 1) transition({ ...state, view: "review", mistakeIndex: 0 }, "mistake");
         }}>Review mistakes</button>}
-        <button type="button" className="action" onClick={(event) => {
+        <button type="button" className="button button-secondary" onClick={(event) => {
           if (event.detail <= 1) transition({ view: "setup" }, "setup");
         }}>Take another test</button>
-        <Link className="back-link" onClick={ignoreRepeatedNavigation} to={path}>Back to study set</Link>
+        <Link className="button button-quiet" onClick={ignoreRepeatedNavigation} to={path}>Back to study set</Link>
       </div>
-    </> : state.view === "review" && mistake && reviewQuestion ? <section className="max-w-xl [overflow-wrap:anywhere]" aria-labelledby="test-mistake-title" key={mistake.questionId}>
-      <p id="test-mistake-position" className="text-small font-semibold text-muted">Mistake {state.mistakeIndex + 1} of {mistakes.length}</p>
-      <div className="mt-5 min-w-0 rounded-surface border border-border bg-surface p-5 sm:p-8">
+    </section> : state.view === "review" && mistake && reviewQuestion ? <section aria-labelledby="test-mistake-title" key={mistake.questionId}>
+      <StudyProgress id="test-mistake-position" label="Mistake" current={state.mistakeIndex + 1} total={mistakes.length} />
+      <div className="study-card">
         <h1 id="test-mistake-title" ref={mistakeHeading} tabIndex={-1} aria-describedby="test-mistake-position">{reviewQuestion.prompt}</h1>
-        <h2 className="mt-6">Your answer</h2>
-        <p className="mt-3">{mistake.selectedChoiceId === null ? "No answer" : reviewQuestion.choices.find((choice) => choice.id === mistake.selectedChoiceId)!.text}</p>
-        <h2 className="mt-6">Correct answer</h2>
-        <p className="mt-3 font-semibold">{reviewQuestion.choices.find((choice) => choice.id === reviewQuestion.correctChoiceId)!.text}</p>
-        {reviewQuestion.explanation && <><h2 className="mt-6">Explanation</h2><p className="mt-3 text-muted">{reviewQuestion.explanation}</p></>}
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <button type="button" className="action mt-0 px-3" disabled={state.mistakeIndex === 0} onClick={(event) => { if (event.detail <= 1) reviewMove(-1); }}>Previous mistake</button>
-          <button type="button" className="action mt-0 px-3" disabled={state.mistakeIndex + 1 === mistakes.length} onClick={(event) => { if (event.detail <= 1) reviewMove(1); }}>Next mistake</button>
+        <div className="answer-block">
+          <h2>Your answer</h2>
+          <p>{mistake.selectedChoiceId === null ? "No answer" : reviewQuestion.choices.find((choice) => choice.id === mistake.selectedChoiceId)!.text}</p>
+        </div>
+        <div className="answer-block answer-block-correct">
+          <h2>Correct answer</h2>
+          <p className="revealed-answer">{reviewQuestion.choices.find((choice) => choice.id === reviewQuestion.correctChoiceId)!.text}</p>
+        </div>
+        {reviewQuestion.explanation && <div className="answer-explanation"><h2>Explanation</h2><p className="mt-2">{reviewQuestion.explanation}</p></div>}
+        <div className="study-navigation">
+          <button type="button" className="button button-secondary" disabled={state.mistakeIndex === 0} onClick={(event) => { if (event.detail <= 1) reviewMove(-1); }}>Previous mistake</button>
+          <button type="button" className="button button-secondary" disabled={state.mistakeIndex + 1 === mistakes.length} onClick={(event) => { if (event.detail <= 1) reviewMove(1); }}>Next mistake</button>
         </div>
       </div>
-      <button type="button" className="back-link" onClick={(event) => {
+      <button type="button" className="button button-quiet mt-4" onClick={(event) => {
         if (event.detail <= 1) transition({ view: "results", session: state.session, result: state.result }, "results");
       }}>Back to results</button>
-      <div><Link className="back-link" onClick={ignoreRepeatedNavigation} to={path}>Back to study set</Link></div>
+      <div><Link className="button button-quiet" onClick={ignoreRepeatedNavigation} to={path}>Back to study set</Link></div>
     </section> : null}
-    {(state.view === "setup" || state.view === "active") && <div className="mt-8"><Link className="back-link" onClick={ignoreRepeatedNavigation} to={path}>{session ? "Exit session" : "Back to study set"}</Link></div>}
+    {state.view === "setup" && <div className="mt-6"><Link className="button button-quiet" onClick={ignoreRepeatedNavigation} to={path}>Back to study set</Link></div>}
+  </>;
+  return <>
+    <title>Test · {studySet.title} | OpenStudy</title>
+    {session ? <StudySessionFrame mode="Test" title={studySet.title} exit={<Link className="button button-quiet" onClick={ignoreRepeatedNavigation}
+      to={path}>Exit session</Link>}>{content}</StudySessionFrame> : content}
   </>;
 }

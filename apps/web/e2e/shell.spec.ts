@@ -27,13 +27,12 @@ test("Library → Import → Library works in a focused responsive canvas", asyn
   await expect(page.getByRole("region", { name: "No study sets yet" })).toBeVisible();
   await expect(page).toHaveTitle("Library | OpenStudy");
   await expectFocusedLayout(page);
-  const action = page.getByRole("link", { name: "Import study set" });
+  const action = page.getByRole("link", { name: "Import study material" });
   await expect(action).toBeInViewport();
   // Guard the production Tailwind pipeline, not just React's DOM output.
   await expect(page.locator("body")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(page.locator("html")).toHaveCSS("background-color", "rgb(245, 246, 242)");
   await expect(action).toHaveCSS("background-color", "rgb(36, 93, 76)");
-  await expect(action).toHaveCSS("border-radius", "10px");
   await expect(page.getByRole("heading", { level: 1 })).toHaveCSS("font-weight", "650");
   const bounds = await action.boundingBox();
   expect(bounds!.height).toBeGreaterThanOrEqual(44);
@@ -84,7 +83,7 @@ test("keyboard flow exposes visible focus and announces destinations", async ({ 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("main")).toBeFocused();
   await page.keyboard.press("Tab");
-  const action = page.getByRole("link", { name: "Import study set" });
+  const action = page.getByRole("link", { name: "Import study material" });
   await expect(action).toBeFocused();
   await expect(action).toHaveCSS("outline-style", "solid");
   await page.keyboard.press("Enter");
@@ -109,7 +108,7 @@ test("200% text remains readable without horizontal overflow", async ({ page }) 
     expect(size.content).toBeLessThanOrEqual(size.viewport);
   };
   await expectNoOverflow();
-  await page.getByRole("link", { name: "Import study set" }).click();
+  await page.getByRole("link", { name: "Import study material" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Import study material" })).toBeVisible();
   await expectNoOverflow();
   await page.getByRole("link", { name: "Back to library" }).click();

@@ -55,8 +55,8 @@ describe("Flashcards route", () => {
   it("exposes both study modes as real actions and keeps Add material secondary", async () => {
     await studySetStorage.saveStudySet(fixture()); renderAt("/study-sets/set.cities"); await screen.findByText("Saved on this device");
     expect(screen.getByRole("link", { name: "Flashcards" })).toHaveAttribute("href", path);
-    expect(screen.getByRole("link", { name: "Flashcards" })).toHaveClass("action");
-    expect(screen.getByRole("link", { name: "Learn" })).toHaveClass("action");
+    expect(screen.getByRole("link", { name: "Flashcards" })).toHaveAccessibleDescription("Recall the answer, reveal it, then rate yourself.");
+    expect(screen.getByRole("link", { name: "Learn" })).toHaveAccessibleDescription("Choose an answer and retry until you get it.");
     expect(screen.getByRole("link", { name: "Add material" })).not.toHaveClass("action");
     expect(screen.getByRole("link", { name: "Test" })).toHaveAttribute("href", "/study-sets/set.cities/test");
     await userEvent.setup().click(screen.getByRole("link", { name: "Flashcards" }));
@@ -144,7 +144,8 @@ describe("Flashcards route", () => {
     expect(screen.getByText("Card 2 of 2")).toBeVisible();
     expect(screen.queryByRole("heading", { name: "Correct answer" })).not.toBeInTheDocument();
     await stored(1); expect(await raw("flashcardProgress")).toHaveLength(1);
-    await user.tab(); await user.tab();
+    // Exit is now above the focused question in the minimal session header.
+    await user.tab({ shift: true });
     expect(screen.getByRole("link", { name: "Exit session" })).toHaveFocus();
     await user.keyboard("{Enter}"); expect(await screen.findByText("Saved on this device")).toBeVisible();
   });

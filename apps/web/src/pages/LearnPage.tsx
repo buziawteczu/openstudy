@@ -8,6 +8,8 @@ import { Link, useParams } from "react-router";
 import { studySetStorage } from "../storage/study-sets.js";
 import { userProgressStorage } from "../storage/user-progress.js";
 
+import { AnswerOption, StudyProgress, StudySessionFrame, StudySetup } from "../components/study/StudyPresentation.js";
+
 type LoadState = { kind: "loading" } | { kind: "ready"; studySet: StudySet; progress: UserProgress[]; focusHeading: boolean } |
   { kind: "missing" | "incompatible" | "error" } | { kind: "progress-error"; studySet: StudySet };
 
@@ -147,67 +149,59 @@ function LearnExperience({ studySet, initialProgress, focusHeading }: { studySet
     requestAnimationFrame(() => setupHeading.current?.focus());
   }
 
+  const content = <>
+    {!session ? <StudySetup mode="Learn" title={studySet.title} headingRef={setupHeading} prefix="learn"
+      description="Choose an answer and retry until you get it. Questions appear in their saved order."
+      categories={studySet.categories} categoryId={categoryId} onCategoryChange={(event) => changeCategory(event.currentTarget.value)}
+      count={count} onCountChange={(event) => setCount(event.currentTarget.value)} countInvalid={count !== "" && !countValid}
+      available={eligible.length} unit="question" countHelp={`Choose a whole number from 1 to ${eligible.length}.`}
+      countError={!countValid && eligible.length > 0 ? "Enter a valid question count to start." : undefined}>
+      {eligible.length === 0 && <p className="text-muted">No questions belong to this topic. Choose another topic.</p>}
+      <button type="button" className="button button-primary" disabled={!countValid} onClick={start}>Start learning</button>
+    </StudySetup> : session.completed ? <section className="session-summary">
+      <h1 ref={completeHeading} tabIndex={-1}>Session complete</h1>
+      <p className="summary-total">{session.results.length} {session.results.length === 1 ? "question" : "questions"} completed</p>
+      <div className="summary-counts">
+        <p>{session.results.filter((result) => result.firstAttemptCorrect).length} correct on the first try</p>
+        <p>{session.results.filter((result) => !result.firstAttemptCorrect).length} needed another attempt</p>
+      </div>
+      <div className="summary-actions">
+        <button type="button" className="button button-primary" onClick={studyAgain}>Study again</button>
+        <Link className="button button-quiet" to={path}>Back to study set</Link>
+      </div>
+    </section> : question ? <section aria-labelledby="learn-question-title">
+      <StudyProgress id="learn-position" label="Question" current={session.currentIndex + 1} total={session.questionIds.length} />
+      <div className="study-card">
+        <h1 id="learn-question-title" ref={questionHeading} tabIndex={-1} aria-describedby="learn-position">{question.prompt}</h1>
+        <fieldset className="study-answers" disabled={session.resolved}>
+          <legend>Choose one answer</legend>
+          <div className="answer-list">{question.choices.map((choice, index) => <AnswerOption key={choice.id}
+            id={choice.id} text={choice.text} index={index} name="learn-answer" checked={session.selectedChoiceId === choice.id}
+            onChange={() => choose(choice.id)} feedback={session.selectedChoiceId === choice.id && session.feedback !== "none" ? session.feedback : undefined} />)}</div>
+        </fieldset>
+        {!session.resolved && session.selectedChoiceId && <button type="button" className="button button-quiet clear-answer" onClick={clear}>Clear answer</button>}
+        <div role="status" aria-live="polite" aria-atomic="true" className="study-feedback">
+          {session.feedback === "wrong" && <p className="feedback feedback-error">Not quite. Try another answer.</p>}
+          {session.feedback === "correct" && <div className="feedback feedback-success">
+            <h2 ref={feedbackHeading} tabIndex={-1}>Correct.</h2>
+            {question.explanation && <p className="mt-3">{question.explanation}</p>}
+          </div>}
+        </div>
+        {session.resolved ? <button type="button" className="button button-primary study-primary" onClick={(event) => {
+          // The button is reused after Check answer; ignore the rest of that click sequence.
+          if (event.detail <= 1) continueSession();
+        }}>Continue</button>
+          : <button type="button" className="button button-primary study-primary" disabled={!session.selectedChoiceId} onClick={(event) => {
+            if (event.detail <= 1) check();
+          }}>Check answer</button>}
+      </div>
+    </section> : <p role="alert">This question is no longer available. Return to the study set.</p>}
+    {warning && <p role="alert" className="feedback feedback-warning session-warning">Your learning progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}
+    {!session && <div className="mt-6"><Link className="button button-quiet" to={path}>← Back to study set</Link></div>}
+  </>;
   return <>
     <title>Learn · {studySet.title} | OpenStudy</title>
-    <p className="eyebrow">Learn</p>
-    {!session ? <>
-      <h1 ref={setupHeading} tabIndex={-1}>Learn “{studySet.title}”</h1>
-      <p className="mt-3 text-muted">Choose what to study. Questions appear in their saved order.</p>
-      <div className="mt-8 max-w-xl">
-        <label htmlFor="learn-category" className="font-semibold">Topic / category</label>
-        <select id="learn-category" className="mapping-control" value={categoryId ?? ""} onChange={(event) => changeCategory(event.currentTarget.value)}>
-          <option value="">All topics</option>
-          {studySet.categories.map((category) => <option key={category.id} value={category.id}>{category.label}</option>)}
-        </select>
-        <p className="mt-2 text-small text-muted">{eligible.length} {eligible.length === 1 ? "question" : "questions"} available</p>
-        <label htmlFor="learn-count" className="mt-6 block font-semibold">Questions</label>
-        <input id="learn-count" className="mapping-control" type="number" min={1} max={eligible.length} step={1} value={count}
-          aria-invalid={count !== "" && !countValid || undefined} aria-describedby="learn-count-help"
-          onChange={(event) => setCount(event.currentTarget.value)} />
-        <p id="learn-count-help" className="mt-2 text-small text-muted">Choose a whole number from 1 to {eligible.length}.</p>
-        {eligible.length === 0 && <p className="mt-4 text-muted">No questions belong to this topic. Choose another topic.</p>}
-        {!countValid && eligible.length > 0 && <p className="mt-2 text-danger">Enter a valid question count to start.</p>}
-        <button type="button" className="action" disabled={!countValid} onClick={start}>Start learning</button>
-      </div>
-    </> : session.completed ? <>
-      <h1 ref={completeHeading} tabIndex={-1}>Session complete</h1>
-      <p className="mt-5 text-lg">{session.results.length} {session.results.length === 1 ? "question" : "questions"} completed</p>
-      <p className="mt-3">{session.results.filter((result) => result.firstAttemptCorrect).length} correct on the first try</p>
-      <p>{session.results.filter((result) => !result.firstAttemptCorrect).length} needed another attempt</p>
-      <div className="mt-5 flex flex-wrap gap-x-5">
-        <button type="button" className="action" onClick={studyAgain}>Study again</button>
-        <Link className="back-link" to={path}>Back to study set</Link>
-      </div>
-    </> : question ? <section aria-labelledby="learn-question-title" className="max-w-xl">
-      <p className="text-small font-semibold text-muted">Question {session.currentIndex + 1} of {session.questionIds.length}</p>
-      <h1 id="learn-question-title" ref={questionHeading} tabIndex={-1} className="mt-5">{question.prompt}</h1>
-      <fieldset className="mt-8" disabled={session.resolved}>
-        <legend className="font-semibold">Choose one answer</legend>
-        <div className="mt-3 grid gap-3">{question.choices.map((choice) => <label key={choice.id}
-          className="flex min-h-12 min-w-0 cursor-pointer items-start gap-3 rounded-small border border-border bg-surface px-4 py-3 [overflow-wrap:anywhere]">
-          <input type="radio" name="learn-answer" value={choice.id} checked={session.selectedChoiceId === choice.id}
-            className="mt-1.5 size-5 shrink-0 accent-accent" onChange={() => choose(choice.id)} />
-          <span>{choice.text}{session.resolved && session.selectedChoiceId === choice.id && <span className="ml-2 font-semibold text-success">Correct answer</span>}</span>
-        </label>)}</div>
-      </fieldset>
-      {!session.resolved && session.selectedChoiceId && <button type="button" className="review-link mt-3" onClick={clear}>Clear answer</button>}
-      <div role="status" aria-live="polite" aria-atomic="true" className="mt-6 min-h-8">
-        {session.feedback === "wrong" && <p className="font-semibold text-danger">Not quite. Try another answer.</p>}
-        {session.feedback === "correct" && <>
-          <h2 ref={feedbackHeading} tabIndex={-1} className="text-success">Correct.</h2>
-          {question.explanation && <p className="mt-3 [overflow-wrap:anywhere]">{question.explanation}</p>}
-        </>}
-      </div>
-      {session.resolved ? <button type="button" className="action" onClick={(event) => {
-        // The button is reused after Check answer; ignore the rest of that click sequence.
-        if (event.detail <= 1) continueSession();
-      }}>Continue</button>
-        : <button type="button" className="action" disabled={!session.selectedChoiceId} onClick={(event) => {
-          if (event.detail <= 1) check();
-        }}>Check answer</button>}
-    </section> : <p role="alert">This question is no longer available. Return to the study set.</p>}
-    {warning && <p role="alert" className="mt-6 text-small text-danger">Your learning progress couldn't be saved on this device. You can continue, but these results may be lost.</p>}
-    {session && !session.completed && <div className="mt-8"><Link className="back-link" to={path}>Exit session</Link></div>}
-    {!session && <div className="mt-6"><Link className="back-link" to={path}>← Back to study set</Link></div>}
+    {session ? <StudySessionFrame mode="Learn" title={studySet.title} exit={<Link className="button button-quiet" to={path}
+      onClick={(event) => { if (event.detail > 1) event.preventDefault(); }}>Exit session</Link>}>{content}</StudySessionFrame> : content}
   </>;
 }

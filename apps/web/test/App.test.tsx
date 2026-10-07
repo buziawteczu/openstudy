@@ -32,14 +32,14 @@ describe("OpenStudy application shell", () => {
   it("shows an honest Library empty state and import link", async () => {
     renderApp();
     const emptyState = await screen.findByRole("region", { name: "No study sets yet" });
-    expect(within(emptyState).getByText(/Bring your own study material/)).toBeInTheDocument();
-    expect(within(emptyState).getByRole("link", { name: "Import study set" })).toHaveAttribute("href", "/import");
+    expect(within(emptyState).getByText(/Import questions or study material/)).toBeInTheDocument();
+    expect(within(emptyState).getByRole("link", { name: "Import study material" })).toHaveAttribute("href", "/import");
   });
 
   it("navigates to Import and focuses its heading", async () => {
     const user = userEvent.setup();
     renderApp();
-    await user.click(await screen.findByRole("link", { name: "Import study set" }));
+    await user.click(await screen.findByRole("link", { name: "Import study material" }));
     expect(screen.getByRole("heading", { level: 1, name: "Import study material" })).toHaveFocus();
     expect(document.title).toBe("Import | OpenStudy");
     expect(screen.queryByText("No study sets yet")).not.toBeInTheDocument();
@@ -74,14 +74,14 @@ describe("OpenStudy application shell", () => {
   it("supports keyboard navigation with a skip link and native links", async () => {
     const user = userEvent.setup();
     renderApp();
-    await screen.findByRole("link", { name: "Import study set" });
+    await screen.findByRole("link", { name: "Import study material" });
     await user.tab();
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveFocus();
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveAttribute("href", "#main-content");
     await user.tab();
     expect(screen.getByRole("link", { name: "OpenStudy library" })).toHaveFocus();
     await user.tab();
-    expect(screen.getByRole("link", { name: "Import study set" })).toHaveFocus();
+    expect(screen.getByRole("link", { name: "Import study material" })).toHaveFocus();
     await user.keyboard("{Enter}");
     expect(screen.getByRole("heading", { level: 1, name: "Import study material" })).toHaveFocus();
   });

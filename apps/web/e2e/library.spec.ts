@@ -71,6 +71,7 @@ test("reviewed DOCX saves and reopens after reload", async ({ page }, testInfo) 
   await page.getByRole("button", { name: "Validate reviewed questions" }).click();
   await page.getByRole("button", { name: "Save to library" }).click();
   await expect(page.getByRole("heading", { name: "questions", exact: true })).toBeVisible();
+  await page.locator("summary").filter({ hasText: "Sources" }).click();
   await expect(page.getByText("questions.docx")).toBeVisible();
   await page.reload();
   await expect(page.getByText("Saved on this device")).toBeVisible();
